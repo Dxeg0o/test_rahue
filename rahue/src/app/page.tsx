@@ -57,7 +57,11 @@ type ViewMode = "minute" | "hour";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
-function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function ChartTooltip({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
   if (!active || !payload || payload.length === 0 || !label) {
     return null;
   }
@@ -102,7 +106,11 @@ export default function HomePage() {
     if (!data) return "";
     const start = parseISO(data.rangeStart);
     const end = parseISO(data.rangeEnd);
-    return `${format(start, "d MMM", { locale: es })} - ${format(end, "d MMM yyyy", { locale: es })}`;
+    return `${format(start, "d MMM", { locale: es })} - ${format(
+      end,
+      "d MMM yyyy",
+      { locale: es }
+    )}`;
   }, [data]);
 
   const dataPointsLabel = useMemo(() => {
@@ -118,7 +126,7 @@ export default function HomePage() {
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold text-slate-900">
-            Dashboard de Conteo
+            Distribución de Frecuencia de Golpes
           </h1>
           <p className="text-sm text-slate-500">
             Análisis de volumen en tiempo real
@@ -160,13 +168,15 @@ export default function HomePage() {
 
       <section className="grid gap-5 md:grid-cols-3">
         <StatCard
-          title="Conteo Total"
+          title="Total de Golpes"
           subtitle="Acumulado en el periodo"
           value={data ? numberFormatter.format(data.totalCount) : "--"}
         />
         <StatCard
           title="Último Registro"
-          subtitle={data?.latestTimestamp ? "Último evento registrado" : undefined}
+          subtitle={
+            data?.latestTimestamp ? "Último evento registrado" : undefined
+          }
           value={
             data?.latestCount != null
               ? numberFormatter.format(data.latestCount)
@@ -177,9 +187,7 @@ export default function HomePage() {
         <StatCard
           title="Promedio"
           subtitle={
-            viewMode === "minute"
-              ? "Promedio por minuto"
-              : "Promedio por hora"
+            viewMode === "minute" ? "Promedio por minuto" : "Promedio por hora"
           }
           value={data ? averageFormatter.format(averageValue) : "--"}
         />
@@ -188,9 +196,11 @@ export default function HomePage() {
       <section className="flex flex-col gap-5 rounded-3xl border border-[#e6e8ee] bg-white p-6 shadow-[0px_16px_40px_rgba(15,23,42,0.05)]">
         <header className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-slate-900">
-            Evolución del conteo
+            Evolución de la Distribución de Frecuencia de Golpes
           </h2>
-          <p className="text-sm text-slate-500">Visualización {viewMode === "minute" ? "por minuto" : "por hora"}</p>
+          <p className="text-sm text-slate-500">
+            Visualización {viewMode === "minute" ? "por minuto" : "por hora"}
+          </p>
         </header>
         <div className="h-[320px] w-full">
           {isLoading ? (
@@ -212,9 +222,18 @@ export default function HomePage() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartSeries} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <AreaChart
+                data={chartSeries}
+                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+              >
                 <defs>
-                  <linearGradient id="countGradient" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="countGradient"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.6} />
                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                   </linearGradient>
@@ -234,7 +253,9 @@ export default function HomePage() {
                 />
                 <YAxis
                   stroke="#94a3b8"
-                  tickFormatter={(value) => numberFormatter.format(Number(value))}
+                  tickFormatter={(value) =>
+                    numberFormatter.format(Number(value))
+                  }
                   fontSize={12}
                 />
                 <Tooltip content={<ChartTooltip />} />

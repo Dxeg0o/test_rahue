@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dashboard de Conteo
 
-## Getting Started
+Aplicación Next.js que muestra un panel en tiempo real con datos provenientes de MongoDB.
 
-First, run the development server:
+## Requisitos
+
+- Node.js 20+
+- Archivo `.env` con las credenciales de la base de datos
+
+## Variables de entorno
+
+Crea un archivo `.env` basado en `.env.example` y completa la contraseña del usuario:
+
+```env
+MONGODB_URI=mongodb+srv://dsolerolguin_db_user:<db_password>@cluster0.mb8mawt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_DB=counter_db
+MONGODB_COLLECTION=counts_per_minute
+```
+
+## Librerías principales utilizadas
+
+Las dependencias clave instaladas para el dashboard son:
+
+- [`mongodb`](https://www.npmjs.com/package/mongodb): conexión con la base de datos.
+- [`swr`](https://swr.vercel.app/): obtención de datos con refresco automático cada minuto.
+- [`recharts`](https://recharts.org/en-US/): visualización gráfica del conteo.
+- [`date-fns`](https://date-fns.org/): formateo de fechas y horas en español.
+
+Estas librerías ya están incluidas en el proyecto. Si necesitas instalarlas manualmente ejecuta:
+
+```bash
+npm install mongodb swr recharts date-fns
+```
+
+## Desarrollo
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+El dashboard estará disponible en [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Lint
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+```

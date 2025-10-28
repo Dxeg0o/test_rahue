@@ -6,6 +6,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,6 +21,7 @@ import { StatCard } from "@/components/stat-card";
 interface SeriesPoint {
   timestamp: string;
   count: number;
+  incidentMessage?: string | null;
 }
 
 interface DashboardData {
@@ -32,6 +34,8 @@ interface DashboardData {
   perHourSeries: SeriesPoint[];
   rangeStart: string;
   rangeEnd: string;
+  incidentTimestamp: string | null;
+  incidentLabel: string | null;
 }
 
 const fetcher = (url: string) =>
@@ -69,6 +73,8 @@ function ChartTooltip({
   const date = parseISO(label);
   const value = payload[0]?.value ?? 0;
   const formatted = format(date, "dd MMM yyyy HH:mm", { locale: es });
+  const incidentMessage =
+    (payload[0]?.payload as SeriesPoint | undefined)?.incidentMessage ?? null;
 
   return (
     <div className="rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 shadow-md">
@@ -76,6 +82,11 @@ function ChartTooltip({
       <p className="text-sm font-semibold text-slate-900">
         {numberFormatter.format(Number(value))}
       </p>
+      {incidentMessage ? (
+        <p className="mt-1 text-xs font-semibold text-rose-500">
+          {incidentMessage}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -259,6 +270,22 @@ export default function HomePage() {
                   fontSize={12}
                 />
                 <Tooltip content={<ChartTooltip />} />
+                {data?.incidentTimestamp ? (
+                  <ReferenceLine
+                    x={data.incidentTimestamp}
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    label={{
+                      value: data.incidentLabel ?? "",
+                      position: "top",
+                      fill: "#ef4444",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      offset: 10,
+                    }}
+                  />
+                ) : null}
                 <Area
                   type="monotone"
                   dataKey="count"

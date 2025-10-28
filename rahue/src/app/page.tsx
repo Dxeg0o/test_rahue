@@ -6,6 +6,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -111,6 +112,12 @@ export default function HomePage() {
       "d MMM yyyy",
       { locale: es }
     )}`;
+  }, [data]);
+
+  const anomalyTimestamp = useMemo(() => {
+    if (!data) return null;
+    const index = 60; // Inicio de la segunda hora
+    return data.perMinuteSeries[index]?.timestamp ?? null;
   }, [data]);
 
   const dataPointsLabel = useMemo(() => {
@@ -259,6 +266,21 @@ export default function HomePage() {
                   fontSize={12}
                 />
                 <Tooltip content={<ChartTooltip />} />
+                {anomalyTimestamp ? (
+                  <ReferenceLine
+                    x={anomalyTimestamp}
+                    stroke="#dc2626"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    label={{
+                      value: "Pieza defectuosa",
+                      position: "top",
+                      fill: "#dc2626",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  />
+                ) : null}
                 <Area
                   type="monotone"
                   dataKey="count"

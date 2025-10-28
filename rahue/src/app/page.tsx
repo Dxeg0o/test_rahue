@@ -6,6 +6,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,6 +23,12 @@ interface SeriesPoint {
   count: number;
 }
 
+interface MachineEvent {
+  timestamp: string;
+  title: string;
+  description: string;
+}
+
 interface DashboardData {
   totalCount: number;
   latestCount: number | null;
@@ -32,6 +39,7 @@ interface DashboardData {
   perHourSeries: SeriesPoint[];
   rangeStart: string;
   rangeEnd: string;
+  events: MachineEvent[];
 }
 
 const fetcher = (url: string) =>
@@ -57,11 +65,16 @@ type ViewMode = "minute" | "hour";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
+type ChartTooltipProps = TooltipProps<number, string> & {
+  events?: MachineEvent[];
+};
+
 function ChartTooltip({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+  events = [],
+}: ChartTooltipProps) {
   if (!active || !payload || payload.length === 0 || !label) {
     return null;
   }
@@ -69,6 +82,7 @@ function ChartTooltip({
   const date = parseISO(label);
   const value = payload[0]?.value ?? 0;
   const formatted = format(date, "dd MMM yyyy HH:mm", { locale: es });
+  const event = events.find((item) => item.timestamp === label);
 
   return (
     <div className="rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 shadow-md">
@@ -76,6 +90,11 @@ function ChartTooltip({
       <p className="text-sm font-semibold text-slate-900">
         {numberFormatter.format(Number(value))}
       </p>
+      {event ? (
+        <p className="mt-1 text-xs font-semibold text-rose-600">
+          {event.title}: {event.description}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -118,6 +137,8 @@ export default function HomePage() {
       ? `Mostrando ${chartSeries.length} puntos de datos`
       : "Sin datos disponibles";
   }, [chartSeries.length]);
+
+  const machineEvents = data?.events ?? [];
 
   const isEmpty = !isLoading && !error && chartSeries.length === 0;
 
@@ -258,7 +279,23 @@ export default function HomePage() {
                   }
                   fontSize={12}
                 />
-                <Tooltip content={<ChartTooltip />} />
+                <Tooltip content={<ChartTooltip events={machineEvents} />} />
+                {machineEvents.map((event) => (
+                  <ReferenceLine
+                    key={event.timestamp}
+                    x={event.timestamp}
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    isFront
+                    label={{
+                      value: event.title,
+                      position: "top",
+                      fill: "#b91c1c",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  />
+                ))}
                 <Area
                   type="monotone"
                   dataKey="count"

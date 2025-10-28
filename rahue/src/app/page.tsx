@@ -6,6 +6,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,9 +18,16 @@ import { es } from "date-fns/locale";
 
 import { StatCard } from "@/components/stat-card";
 
+interface DashboardEvent {
+  timestamp: string;
+  title: string;
+  description: string;
+}
+
 interface SeriesPoint {
   timestamp: string;
   count: number;
+  event?: DashboardEvent;
 }
 
 interface DashboardData {
@@ -32,6 +40,7 @@ interface DashboardData {
   perHourSeries: SeriesPoint[];
   rangeStart: string;
   rangeEnd: string;
+  events: DashboardEvent[];
 }
 
 const fetcher = (url: string) =>
@@ -68,6 +77,8 @@ function ChartTooltip({
 
   const date = parseISO(label);
   const value = payload[0]?.value ?? 0;
+  const point = payload[0]?.payload as SeriesPoint | undefined;
+  const event = point?.event;
   const formatted = format(date, "dd MMM yyyy HH:mm", { locale: es });
 
   return (
@@ -76,6 +87,17 @@ function ChartTooltip({
       <p className="text-sm font-semibold text-slate-900">
         {numberFormatter.format(Number(value))}
       </p>
+      {event ? (
+        <div className="mt-2 flex items-start gap-2">
+          <span className="mt-1 h-2 w-2 rounded-full bg-rose-500" />
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-rose-600">
+              {event.title}
+            </p>
+            <p className="text-xs text-rose-500">{event.description}</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -120,6 +142,7 @@ export default function HomePage() {
   }, [chartSeries.length]);
 
   const isEmpty = !isLoading && !error && chartSeries.length === 0;
+  const events = data?.events ?? [];
 
   return (
     <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-10">
@@ -259,6 +282,23 @@ export default function HomePage() {
                   fontSize={12}
                 />
                 <Tooltip content={<ChartTooltip />} />
+                {events.map((event) => (
+                  <ReferenceLine
+                    key={event.timestamp}
+                    x={event.timestamp}
+                    stroke="#dc2626"
+                    strokeWidth={2}
+                    strokeDasharray="6 6"
+                    label={{
+                      value: event.title,
+                      position: "top",
+                      fill: "#b91c1c",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      dy: -6,
+                    }}
+                  />
+                ))}
                 <Area
                   type="monotone"
                   dataKey="count"

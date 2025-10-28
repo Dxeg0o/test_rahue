@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
 
-const DEFAULT_RANGE_MINUTES = 24 * 60;
-
-interface MinuteDocument {
-  ts_minute: Date;
-  count_last_minute: number;
-}
+type DashboardEvent = {
+  timestamp: string;
+  title: string;
+  description: string;
+};
 
 type SeriesPoint = {
   timestamp: string;
   count: number;
+  event?: DashboardEvent;
 };
 
 type DashboardPayload = {
@@ -23,91 +22,121 @@ type DashboardPayload = {
   perHourSeries: SeriesPoint[];
   rangeStart: string;
   rangeEnd: string;
+  events: DashboardEvent[];
 };
 
-export async function GET() {
-  try {
-    const client = await clientPromise;
-    const dbName = process.env.MONGODB_DB ?? "counter_db";
-    const collectionName =
-      process.env.MONGODB_COLLECTION ?? "counts_per_minute";
+const TOTAL_MINUTES = 4 * 60;
+const DECLINE_START_MINUTE = 60;
 
-    const db = client.db(dbName);
-    const collection = db.collection<MinuteDocument>(collectionName);
+function buildStaticSeries() {
+  const now = new Date();
+  const rangeStart = new Date(now.getTime() - (TOTAL_MINUTES - 1) * 60_000);
+  const declineStart = new Date(
+    rangeStart.getTime() + DECLINE_START_MINUTE * 60_000
+  );
 
-    const now = new Date();
-    const rangeStart = new Date(
-      now.getTime() - DEFAULT_RANGE_MINUTES * 60 * 1000
-    );
+  const event: DashboardEvent = {
+    timestamp: declineStart.toISOString(),
+    title: "Pieza defectuosa",
+    description:
+      "Se reportó en el formulario de problemas de la máquina: \"Pieza defectuosa\".",
+  };
 
-    const minuteDocs = await collection
-      .find({ ts_minute: { $gte: rangeStart, $lte: now } })
-      .sort({ ts_minute: 1 })
-      .toArray();
+  const steadyPattern = [8, 9, 7, 10, 11, 9, 8, 10];
+  const declineDuration = TOTAL_MINUTES - DECLINE_START_MINUTE;
 
-    const perMinuteSeries: SeriesPoint[] = minuteDocs.map((doc) => ({
-      timestamp: doc.ts_minute.toISOString(),
-      count: doc.count_last_minute ?? 0,
-    }));
+  const perMinuteSeries: SeriesPoint[] = Array.from(
+    { length: TOTAL_MINUTES },
+    (_, index) => {
+      const timestamp = new Date(rangeStart.getTime() + index * 60_000);
 
-    const totalCount = perMinuteSeries.reduce(
-      (acc, point) => acc + point.count,
-      0
-    );
+      let count: number;
+      if (index < DECLINE_START_MINUTE) {
+        count = steadyPattern[index % steadyPattern.length];
+      } else {
+        const progress =
+          declineDuration > 1
+            ? (index - DECLINE_START_MINUTE) / (declineDuration - 1)
+            : 1;
+        const base = 7.5 - progress * 5.5; // from ~7.5 down to ~2.0
+        const modulation = ((index - DECLINE_START_MINUTE) % 5) * 0.15;
+        count = Math.max(2, Math.round(base - modulation));
+      }
 
-    const latestDoc = minuteDocs[minuteDocs.length - 1] ?? null;
-    const latestCount = latestDoc?.count_last_minute ?? null;
-    const latestTimestamp = latestDoc?.ts_minute.toISOString() ?? null;
+      const point: SeriesPoint = {
+        timestamp: timestamp.toISOString(),
+        count,
+      };
 
-    const averagePerMinute =
-      perMinuteSeries.length > 0
-        ? totalCount / perMinuteSeries.length
-        : 0;
+      if (index === DECLINE_START_MINUTE) {
+        point.event = event;
+      }
 
-    const hourBuckets = new Map<string, number>();
-
-    for (const doc of minuteDocs) {
-      const hour = new Date(doc.ts_minute);
-      hour.setMinutes(0, 0, 0);
-      const key = hour.toISOString();
-      const currentValue = hourBuckets.get(key) ?? 0;
-      hourBuckets.set(key, currentValue + (doc.count_last_minute ?? 0));
+      return point;
     }
+  );
 
-    const perHourSeries: SeriesPoint[] = Array.from(hourBuckets.entries())
-      .sort(
-        (a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()
-      )
-      .map(([timestamp, count]) => ({ timestamp, count }));
+  const perHourBuckets = new Map<number, SeriesPoint>();
 
-    const averagePerHour =
-      perHourSeries.length > 0
-        ? perHourSeries.reduce((acc, point) => acc + point.count, 0) /
-          perHourSeries.length
-        : 0;
+  for (const point of perMinuteSeries) {
+    const timestamp = new Date(point.timestamp);
+    timestamp.setMinutes(0, 0, 0);
+    const bucketKey = timestamp.getTime();
+    const existing = perHourBuckets.get(bucketKey);
 
-    const payload: DashboardPayload = {
-      totalCount,
-      latestCount,
-      latestTimestamp,
-      averagePerMinute,
-      averagePerHour,
-      perMinuteSeries,
-      perHourSeries,
-      rangeStart: rangeStart.toISOString(),
-      rangeEnd: now.toISOString(),
-    };
-
-    return NextResponse.json(payload, {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching dashboard data", error);
-    return NextResponse.json(
-      { message: "No fue posible obtener los datos." },
-      { status: 500 }
-    );
+    if (existing) {
+      existing.count += point.count;
+      if (point.event && !existing.event) {
+        existing.event = point.event;
+      }
+    } else {
+      perHourBuckets.set(bucketKey, {
+        timestamp: timestamp.toISOString(),
+        count: point.count,
+        event: point.event,
+      });
+    }
   }
+
+  const perHourSeries = Array.from(perHourBuckets.values()).sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  return { perMinuteSeries, perHourSeries, rangeStart, rangeEnd: now, event };
+}
+
+export async function GET() {
+  const { perMinuteSeries, perHourSeries, rangeStart, rangeEnd, event } =
+    buildStaticSeries();
+
+  const totalCount = perMinuteSeries.reduce((acc, point) => acc + point.count, 0);
+  const latestPoint = perMinuteSeries[perMinuteSeries.length - 1] ?? null;
+  const latestCount = latestPoint?.count ?? null;
+  const latestTimestamp = latestPoint?.timestamp ?? null;
+
+  const averagePerMinute =
+    perMinuteSeries.length > 0 ? totalCount / perMinuteSeries.length : 0;
+
+  const totalPerHour = perHourSeries.reduce((acc, point) => acc + point.count, 0);
+  const averagePerHour =
+    perHourSeries.length > 0 ? totalPerHour / perHourSeries.length : 0;
+
+  const payload: DashboardPayload = {
+    totalCount,
+    latestCount,
+    latestTimestamp,
+    averagePerMinute,
+    averagePerHour,
+    perMinuteSeries,
+    perHourSeries,
+    rangeStart: rangeStart.toISOString(),
+    rangeEnd: rangeEnd.toISOString(),
+    events: [event],
+  };
+
+  return NextResponse.json(payload, {
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
 }

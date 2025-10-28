@@ -6,6 +6,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,6 +21,7 @@ import { StatCard } from "@/components/stat-card";
 interface SeriesPoint {
   timestamp: string;
   count: number;
+  eventLabel?: string;
 }
 
 interface DashboardData {
@@ -32,6 +34,11 @@ interface DashboardData {
   perHourSeries: SeriesPoint[];
   rangeStart: string;
   rangeEnd: string;
+  annotations: Array<{
+    timestamp: string;
+    label: string;
+    description?: string;
+  }>;
 }
 
 const fetcher = (url: string) =>
@@ -68,6 +75,7 @@ function ChartTooltip({
 
   const date = parseISO(label);
   const value = payload[0]?.value ?? 0;
+  const pointPayload = payload[0]?.payload as SeriesPoint | undefined;
   const formatted = format(date, "dd MMM yyyy HH:mm", { locale: es });
 
   return (
@@ -76,6 +84,11 @@ function ChartTooltip({
       <p className="text-sm font-semibold text-slate-900">
         {numberFormatter.format(Number(value))}
       </p>
+      {pointPayload?.eventLabel ? (
+        <p className="mt-1 text-xs font-medium text-indigo-600">
+          {pointPayload.eventLabel}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -120,6 +133,8 @@ export default function HomePage() {
   }, [chartSeries.length]);
 
   const isEmpty = !isLoading && !error && chartSeries.length === 0;
+
+  const annotations = data?.annotations ?? [];
 
   return (
     <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-10">
@@ -259,6 +274,21 @@ export default function HomePage() {
                   fontSize={12}
                 />
                 <Tooltip content={<ChartTooltip />} />
+                {annotations.map((annotation) => (
+                  <ReferenceLine
+                    key={annotation.timestamp}
+                    x={annotation.timestamp}
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    strokeDasharray="6 6"
+                    label={{
+                      value: annotation.label,
+                      position: "top",
+                      fill: "#ef4444",
+                      fontSize: 12,
+                    }}
+                  />
+                ))}
                 <Area
                   type="monotone"
                   dataKey="count"

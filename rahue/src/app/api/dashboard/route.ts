@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
-
-const DEFAULT_RANGE_MINUTES = 24 * 60;
-
-interface MinuteDocument {
-  ts_minute: Date;
-  count_last_minute: number;
-}
 
 type SeriesPoint = {
   timestamp: string;
   count: number;
+  eventLabel?: string;
+};
+
+type ChartAnnotation = {
+  timestamp: string;
+  label: string;
+  description?: string;
 };
 
 type DashboardPayload = {
@@ -23,91 +22,126 @@ type DashboardPayload = {
   perHourSeries: SeriesPoint[];
   rangeStart: string;
   rangeEnd: string;
+  annotations: ChartAnnotation[];
 };
 
-export async function GET() {
-  try {
-    const client = await clientPromise;
-    const dbName = process.env.MONGODB_DB ?? "counter_db";
-    const collectionName =
-      process.env.MONGODB_COLLECTION ?? "counts_per_minute";
+const TOTAL_MINUTES = 4 * 60;
+const DROP_START_MINUTE = 3 * 60;
+const START_TIMESTAMP = new Date("2024-04-18T08:00:00.000Z");
 
-    const db = client.db(dbName);
-    const collection = db.collection<MinuteDocument>(collectionName);
+function buildMinuteSeries(): SeriesPoint[] {
+  return Array.from({ length: TOTAL_MINUTES }, (_, index) => {
+    const timestamp = new Date(
+      START_TIMESTAMP.getTime() + index * 60 * 1000
+    ).toISOString();
 
-    const now = new Date();
-    const rangeStart = new Date(
-      now.getTime() - DEFAULT_RANGE_MINUTES * 60 * 1000
-    );
+    let count: number;
 
-    const minuteDocs = await collection
-      .find({ ts_minute: { $gte: rangeStart, $lte: now } })
-      .sort({ ts_minute: 1 })
-      .toArray();
+    if (index < DROP_START_MINUTE) {
+      const steadyPattern = [7, 8, 9, 10, 11, 9, 8, 10];
+      count = steadyPattern[index % steadyPattern.length];
+    } else {
+      const progress = index - DROP_START_MINUTE;
 
-    const perMinuteSeries: SeriesPoint[] = minuteDocs.map((doc) => ({
-      timestamp: doc.ts_minute.toISOString(),
-      count: doc.count_last_minute ?? 0,
-    }));
-
-    const totalCount = perMinuteSeries.reduce(
-      (acc, point) => acc + point.count,
-      0
-    );
-
-    const latestDoc = minuteDocs[minuteDocs.length - 1] ?? null;
-    const latestCount = latestDoc?.count_last_minute ?? null;
-    const latestTimestamp = latestDoc?.ts_minute.toISOString() ?? null;
-
-    const averagePerMinute =
-      perMinuteSeries.length > 0
-        ? totalCount / perMinuteSeries.length
-        : 0;
-
-    const hourBuckets = new Map<string, number>();
-
-    for (const doc of minuteDocs) {
-      const hour = new Date(doc.ts_minute);
-      hour.setMinutes(0, 0, 0);
-      const key = hour.toISOString();
-      const currentValue = hourBuckets.get(key) ?? 0;
-      hourBuckets.set(key, currentValue + (doc.count_last_minute ?? 0));
+      if (progress < 10) {
+        count = 4;
+      } else {
+        count = progress % 3 === 0 ? 3 : 2;
+      }
     }
 
-    const perHourSeries: SeriesPoint[] = Array.from(hourBuckets.entries())
-      .sort(
-        (a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()
-      )
-      .map(([timestamp, count]) => ({ timestamp, count }));
+    const eventLabel =
+      index === DROP_START_MINUTE
+        ? "Pieza defectuosa reportada en el formulario de problemas"
+        : undefined;
 
-    const averagePerHour =
-      perHourSeries.length > 0
-        ? perHourSeries.reduce((acc, point) => acc + point.count, 0) /
-          perHourSeries.length
-        : 0;
-
-    const payload: DashboardPayload = {
-      totalCount,
-      latestCount,
-      latestTimestamp,
-      averagePerMinute,
-      averagePerHour,
-      perMinuteSeries,
-      perHourSeries,
-      rangeStart: rangeStart.toISOString(),
-      rangeEnd: now.toISOString(),
+    return {
+      timestamp,
+      count,
+      eventLabel,
     };
+  });
+}
 
-    return NextResponse.json(payload, {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching dashboard data", error);
-    return NextResponse.json(
-      { message: "No fue posible obtener los datos." },
-      { status: 500 }
-    );
+function buildHourSeries(perMinuteSeries: SeriesPoint[]): SeriesPoint[] {
+  const buckets = new Map<number, SeriesPoint>();
+
+  for (const point of perMinuteSeries) {
+    const date = new Date(point.timestamp);
+    date.setMinutes(0, 0, 0);
+    const bucketKey = date.getTime();
+    const bucket = buckets.get(bucketKey);
+
+    if (!bucket) {
+      buckets.set(bucketKey, {
+        timestamp: date.toISOString(),
+        count: point.count,
+        eventLabel: point.eventLabel,
+      });
+    } else {
+      bucket.count += point.count;
+      if (point.eventLabel) {
+        bucket.eventLabel = point.eventLabel;
+      }
+    }
   }
+
+  return Array.from(buckets.values()).sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+}
+
+export async function GET() {
+  const perMinuteSeries = buildMinuteSeries();
+  const perHourSeries = buildHourSeries(perMinuteSeries);
+
+  const totalCount = perMinuteSeries.reduce((acc, point) => acc + point.count, 0);
+
+  const latestPoint = perMinuteSeries[perMinuteSeries.length - 1];
+  const latestCount = latestPoint?.count ?? null;
+  const latestTimestamp = latestPoint?.timestamp ?? null;
+
+  const averagePerMinute =
+    perMinuteSeries.length > 0 ? totalCount / perMinuteSeries.length : 0;
+
+  const averagePerHour =
+    perHourSeries.length > 0
+      ? perHourSeries.reduce((acc, point) => acc + point.count, 0) /
+        perHourSeries.length
+      : 0;
+
+  const rangeStart = perMinuteSeries[0]?.timestamp ?? START_TIMESTAMP.toISOString();
+  const rangeEnd =
+    perMinuteSeries[perMinuteSeries.length - 1]?.timestamp ??
+    new Date(START_TIMESTAMP.getTime() + (TOTAL_MINUTES - 1) * 60 * 1000).toISOString();
+
+  const annotations: ChartAnnotation[] = [
+    {
+      timestamp: new Date(
+        START_TIMESTAMP.getTime() + DROP_START_MINUTE * 60 * 1000
+      ).toISOString(),
+      label: "Pieza defectuosa",
+      description:
+        "Se reportó una pieza defectuosa en el formulario de problemas de la máquina.",
+    },
+  ];
+
+  const payload: DashboardPayload = {
+    totalCount,
+    latestCount,
+    latestTimestamp,
+    averagePerMinute,
+    averagePerHour,
+    perMinuteSeries,
+    perHourSeries,
+    rangeStart,
+    rangeEnd,
+    annotations,
+  };
+
+  return NextResponse.json(payload, {
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
 }

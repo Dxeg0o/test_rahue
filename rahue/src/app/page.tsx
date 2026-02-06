@@ -13,6 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
+import { OtHistoryView } from "@/components/ot-history-view";
 
 // --- Mock Data ---
 const performanceData = [
@@ -166,21 +167,24 @@ export default function HomePage() {
 
       {/* 2. HISTORY / WORKERS PLACEHOLDERS */}
       {!selectedMachineId && activeView !== "live" && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-500 shadow-sm">
-              <p className="text-lg font-medium">Vista de Información: {activeView === "history" ? "Historial" : "Operadores"}</p>
-              <p className="text-sm mt-2">Aquí se mostrarían tablas detalladas, gráficas de rendimiento mensual, etc.</p>
-              
-              {activeView === "workers" && (
-                  <div className="mt-8 grid gap-4 md:grid-cols-3">
-                      {operatorStats.map(op => (
-                          <div key={op.name} className="p-4 bg-slate-50 rounded-xl">
-                              <p className="font-bold text-slate-900">{op.name}</p>
-                              <p className="text-sm text-emerald-600 font-bold">{op.efficiency}% Eficiencia</p>
-                          </div>
-                      ))}
-                  </div>
-              )}
-          </div>
+         <div className="w-full">
+            {activeView === "history" ? (
+                <OtHistoryView />
+            ) : (
+                <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-500 shadow-sm">
+                    <p className="text-lg font-medium">Vista de Operadores</p>
+                    <p className="text-sm mt-2">Aquí se mostrarían métricas detalladas por trabajador.</p>
+                    <div className="mt-8 grid gap-4 md:grid-cols-3">
+                        {operatorStats.map(op => (
+                            <div key={op.name} className="p-4 bg-slate-50 rounded-xl">
+                                <p className="font-bold text-slate-900">{op.name}</p>
+                                <p className="text-sm text-emerald-600 font-bold">{op.efficiency}% Eficiencia</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+         </div>
       )}
 
 

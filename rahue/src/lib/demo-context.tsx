@@ -40,6 +40,7 @@ export interface MachineState {
   metrics: DemoMetrics;
   history: HistoryPoint[];
   status: "IDLE" | "RUNNING";
+  internalHits: number; // Float accumulator
 }
 
 interface DemoContextType {
@@ -72,13 +73,15 @@ const generateInitialMachines = (): MachineState[] => {
         status: "IDLE",
         order: null,
         metrics: { totalHits: 0, totalUnits: 0, hitsPerMinute: 0, currentSpeed: 0 },
-        history: []
+        history: [],
+        internalHits: 0
     });
 
     // Simulated Machines (B-H)
     const machineNames = ["B", "C", "D", "E", "F", "G", "H"];
     machineNames.forEach((letter, i) => {
         const isRunning = i % 3 !== 0; // Some random status
+        const initialHits = isRunning ? 1500 + (i * 500) : 0;
         machines.push({
             id: `machine-${i + 2}`,
             name: `Troqueladora ${letter}`,
@@ -92,12 +95,13 @@ const generateInitialMachines = (): MachineState[] => {
                 status: "RUNNING"
             } : null,
             metrics: { 
-                totalHits: isRunning ? 1500 + (i * 500) : 0, 
-                totalUnits: isRunning ? (1500 + (i * 500)) * 10 : 0, 
-                hitsPerMinute: 60, 
-                currentSpeed: isRunning ? 55 + i : 0
+                totalHits: initialHits, 
+                totalUnits: initialHits * 10, 
+                hitsPerMinute: 350, 
+                currentSpeed: isRunning ? 330 + (i * 5) : 0
             },
-            history: []
+            history: [],
+            internalHits: initialHits
         });
     });
 
@@ -115,38 +119,44 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
         setMachines(prevMachines => prevMachines.map(m => {
             if (m.status !== "RUNNING" || !m.order) {
-                // Determine if we should clear history or keep the last point with 0 speed?
-                // For simplicity, let's just keep history as is or add 0 points.
-                // Adding 0 points makes the graph look "live" but flatlining.
-                
                  if (m.history.length > 0 && m.history[m.history.length - 1].speed > 0) {
                      // Add one "stop" point
                      return {
                          ...m,
-                         history: [...m.history.slice(-29), { time: now, speed: 0, target: 60 }]
+                         history: [...m.history.slice(-29), { time: now, speed: 0, target: 350 }]
                      }
                  }
                 return m; 
             };
 
             // Simulate tick
-            // 60-70 GPM variance
-            const variance = Math.floor(Math.random() * 5) - 2; 
+            // Target speed range: 330 - 365 GPM
+            // Random walk with tendency to return to center (347.5)
+            // const centerSpeed = 347.5; // Unused
+            let variance = Math.floor(Math.random() * 7) - 3; // -3 to +3
+            
+            // If too low, push up
+            if (m.metrics.currentSpeed < 330) variance = Math.abs(variance) + 1;
+            // If too high, push down
+            if (m.metrics.currentSpeed > 365) variance = -Math.abs(variance) - 1;
+
             const newSpeed = Math.max(0, m.metrics.currentSpeed + variance);
             
             // Calc hits for this second (speed is per minute) -> speed / 60
-            // Since we run every 1s, we add speed/60 hits. 
-            // To make it look "fast", let's just use a simple accumulation.
             const hitsThisTick = newSpeed / 60; 
             
-            // Update total hits (integer tracking mostly, but float internally is fine for smoothness, display creates int)
-            const newTotalHits = m.metrics.totalHits + hitsThisTick;
-            const newTotalUnits = Math.floor(newTotalHits) * m.order.outputs;
+            // Update total hits using internal accumulator
+            // If internalHits is undefined fallback to metrics.totalHits (shouldn't happen with new init)
+            const currentInternal = m.internalHits ?? m.metrics.totalHits;
+            const newInternalHits = currentInternal + hitsThisTick;
+            
+            const newTotalHitsInt = Math.floor(newInternalHits);
+            const newTotalUnits = newTotalHitsInt * m.order.outputs;
 
             const newPoint: HistoryPoint = {
                 time: now,
                 speed: newSpeed,
-                target: 60 // Mock target speed
+                target: 350 // Mock target speed
             };
 
             // Keep only last 30 points
@@ -154,9 +164,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
             return {
                 ...m,
+                internalHits: newInternalHits,
                 metrics: {
                     ...m.metrics,
-                    totalHits: newTotalHits,
+                    totalHits: newTotalHitsInt,
                     totalUnits: newTotalUnits,
                     currentSpeed: newSpeed
                 },
@@ -185,10 +196,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             metrics: {
                 totalHits: 0,
                 totalUnits: 0,
-                hitsPerMinute: 60,
-                currentSpeed: 60 // Start speed
+                hitsPerMinute: 350,
+                currentSpeed: 340 // Start speed
             },
-            history: [] // Reset history on new run
+            history: [], // Reset history on new run
+            internalHits: 0
         }
     }));
     

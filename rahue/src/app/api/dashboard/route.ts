@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { mockMinuteDocs, type MinuteDocument } from "@/lib/mockData";
+import { mockMinuteDocs } from "@/lib/mockData";
 
 const DEFAULT_RANGE_MINUTES = 24 * 60;
 

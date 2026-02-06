@@ -13,7 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import { OtHistoryView } from "@/components/ot-history-view";
+import { GeneralHistoryView } from "@/components/general-history-view";
 
 // --- Mock Data ---
 const performanceData = [
@@ -25,11 +25,7 @@ const performanceData = [
   { time: "13:00", speed: 62, target: 50 },
 ];
 
-const operatorStats = [
-    { name: "Juan Pérez", efficiency: 95 },
-    { name: "María González", efficiency: 98 },
-    { name: "Carlos Ruiz", efficiency: 88 },
-];
+
 
 export default function HomePage() {
   const { machines } = useDemo();
@@ -79,10 +75,10 @@ export default function HomePage() {
       {/* Main Navigation Tabs (Only visible in Main View) */}
       {!selectedMachineId && (
           <div className="flex space-x-1 rounded-xl bg-slate-100 p-1">
-            {["live", "history", "workers"].map((tab) => (
+            {["live", "history"].map((tab) => (
                 <button
                 key={tab}
-                onClick={() => setActiveView(tab as any)}
+                onClick={() => setActiveView(tab as "live" | "history" | "workers")}
                 className={`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 ${
                     activeView === tab
                     ? "bg-white text-slate-900 shadow"
@@ -90,8 +86,7 @@ export default function HomePage() {
                 }`}
                 >
                 {tab === "live" && "Planta en Vivo"}
-                {tab === "history" && "Historial de Turnos"}
-                {tab === "workers" && "Desempeño Operadores"}
+                {tab === "history" && "Historial General"}
                 </button>
             ))}
           </div>
@@ -167,23 +162,8 @@ export default function HomePage() {
 
       {/* 2. HISTORY / WORKERS PLACEHOLDERS */}
       {!selectedMachineId && activeView !== "live" && (
-         <div className="w-full">
-            {activeView === "history" ? (
-                <OtHistoryView />
-            ) : (
-                <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-500 shadow-sm">
-                    <p className="text-lg font-medium">Vista de Operadores</p>
-                    <p className="text-sm mt-2">Aquí se mostrarían métricas detalladas por trabajador.</p>
-                    <div className="mt-8 grid gap-4 md:grid-cols-3">
-                        {operatorStats.map(op => (
-                            <div key={op.name} className="p-4 bg-slate-50 rounded-xl">
-                                <p className="font-bold text-slate-900">{op.name}</p>
-                                <p className="text-sm text-emerald-600 font-bold">{op.efficiency}% Eficiencia</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+         <div className="w-full h-full">
+            <GeneralHistoryView />
          </div>
       )}
 
@@ -231,7 +211,7 @@ export default function HomePage() {
                   {['production', 'quality', 'stops'].map((tab) => (
                     <button
                       key={tab}
-                      onClick={() => setDetailTab(tab as any)}
+                      onClick={() => setDetailTab(tab as "production" | "quality" | "stops")}
                       className={`
                         whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium
                         ${detailTab === tab

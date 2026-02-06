@@ -3,6 +3,8 @@
 import { useDemo } from "@/lib/demo-context";
 import { useState } from "react";
 
+import { PENDING_OTS } from "@/lib/mockOtData";
+
 export default function OperatorPage() {
   const { machines, startMachineOrder, stopMachineOrder } = useDemo();
   
@@ -15,6 +17,17 @@ export default function OperatorPage() {
   const [rut, setRut] = useState("");
   const [outputs, setOutputs] = useState(6);
   const [target, setTarget] = useState(50000);
+
+  const handleOtChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const selectedId = e.target.value;
+      setOt(selectedId);
+      
+      const pending = PENDING_OTS.find(p => p.id === selectedId);
+      if (pending) {
+          setOutputs(pending.outputs);
+          setTarget(pending.target);
+      }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +42,7 @@ export default function OperatorPage() {
   if (!myMachine) return <div>Error: Máquina no configurada</div>;
 
   if (isRunning && myMachine.order) {
+    // ... (This part stays largely the same, maybe update success message)
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-6">
         <div className="w-full max-w-lg space-y-8 rounded-3xl bg-white p-10 shadow-xl ring-1 ring-slate-900/5">
@@ -84,17 +98,22 @@ export default function OperatorPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="ot" className="block text-sm font-medium text-slate-700">
-              Número de OT (Orden de Trabajo)
+              Seleccionar Orden de Trabajo (Pendientes)
             </label>
-            <input
-              type="text"
+            <select
               id="ot"
               required
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-              placeholder="Ej. 1001"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm bg-white"
               value={ot}
-              onChange={(e) => setOt(e.target.value)}
-            />
+              onChange={handleOtChange}
+            >
+                <option value="">-- Seleccionar OT --</option>
+                {PENDING_OTS.map(p => (
+                    <option key={p.id} value={p.id}>
+                        {p.id} - {p.client} ({p.product})
+                    </option>
+                ))}
+            </select>
           </div>
 
           <div>
@@ -115,34 +134,20 @@ export default function OperatorPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
                 <label htmlFor="outputs" className="block text-sm font-medium text-slate-700">
-                Salidas
+                Salidas (Troqueladora)
                 </label>
                 <input
                 type="number"
                 id="outputs"
                 min={1}
-                max={10}
+                max={20}
                 required
                 className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
                 value={outputs}
                 onChange={(e) => setOutputs(Number(e.target.value))}
                 />
             </div>
-             <div>
-                <label htmlFor="target" className="block text-sm font-medium text-slate-700">
-                Meta Unidades
-                </label>
-                <input
-                type="number"
-                id="target"
-                min={100}
-                step={100}
-                required
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                value={target}
-                onChange={(e) => setTarget(Number(e.target.value))}
-                />
-            </div>
+            {/* Target is hidden but tracked in state */}
           </div>
 
           <button

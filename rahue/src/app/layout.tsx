@@ -18,6 +18,9 @@ export const metadata: Metadata = {
     "Visualización en tiempo real del conteo acumulado y promedio por minuto y hora.",
 };
 
+import { DemoProvider } from "@/lib/demo-context";
+import { DemoWizard } from "@/components/demo-wizard";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,7 +31,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[var(--background)]`}
       >
-        {children}
+        <DemoProvider>
+          <DemoWizard />
+          {children}
+        </DemoProvider>
       </body>
     </html>
   );

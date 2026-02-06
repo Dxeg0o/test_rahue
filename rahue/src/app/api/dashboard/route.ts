@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import { mockMinuteDocs, type MinuteDocument } from "@/lib/mockData";
 
 const DEFAULT_RANGE_MINUTES = 24 * 60;
-
-interface MinuteDocument {
-  ts_minute: Date;
-  count_last_minute: number;
-}
 
 type SeriesPoint = {
   timestamp: string;
@@ -27,23 +22,17 @@ type DashboardPayload = {
 
 export async function GET() {
   try {
-    const client = await clientPromise;
-    const dbName = process.env.MONGODB_DB ?? "counter_db";
-    const collectionName =
-      process.env.MONGODB_COLLECTION ?? "counts_per_minute";
-
-    const db = client.db(dbName);
-    const collection = db.collection<MinuteDocument>(collectionName);
-
+    // START MOCK DATA REPLACEMENT
     const now = new Date();
     const rangeStart = new Date(
       now.getTime() - DEFAULT_RANGE_MINUTES * 60 * 1000
     );
 
-    const minuteDocs = await collection
-      .find({ ts_minute: { $gte: rangeStart, $lte: now } })
-      .sort({ ts_minute: 1 })
-      .toArray();
+    // Filter mock data for the requested range
+    const minuteDocs = mockMinuteDocs
+      .filter((doc) => doc.ts_minute >= rangeStart && doc.ts_minute <= now)
+      .sort((a, b) => a.ts_minute.getTime() - b.ts_minute.getTime());
+    // END MOCK DATA REPLACEMENT
 
     const perMinuteSeries: SeriesPoint[] = minuteDocs.map((doc) => ({
       timestamp: doc.ts_minute.toISOString(),

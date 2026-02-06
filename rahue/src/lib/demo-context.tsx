@@ -69,7 +69,7 @@ const generateInitialMachines = (): MachineState[] => {
     // User's Machine
     machines.push({
         id: "machine-1",
-        name: "Troqueladora A (Tu Máquina)",
+        name: "Troqueladora A",
         status: "IDLE",
         order: null,
         metrics: { totalHits: 0, totalUnits: 0, hitsPerMinute: 0, currentSpeed: 0 },

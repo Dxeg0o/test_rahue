@@ -114,12 +114,16 @@ export default function HomePage() {
                 className={`group relative cursor-pointer overflow-hidden rounded-3xl p-6 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl border border-slate-100 bg-white`}
                 >
                     {/* Status Dot */}
-                    <div className={`absolute top-4 right-4 h-3 w-3 rounded-full ${machine.status === "RUNNING" ? "bg-green-500 animate-pulse" : "bg-slate-300"}`} />
+                    <div className={`absolute top-4 right-4 h-3 w-3 rounded-full ${
+                        machine.status === "RUNNING" ? "bg-green-500 animate-pulse" : 
+                        machine.order?.status === "PAUSED" ? "bg-yellow-400 animate-pulse" :
+                        "bg-slate-300"
+                    }`} />
 
                     <h3 className="text-xl font-bold text-slate-900 mb-1">{machine.name}</h3>
                     <p className="text-xs text-slate-400 mb-6">ID: {machine.id.toUpperCase()}</p>
 
-                    {machine.status === "RUNNING" && machine.order ? (
+                    {(machine.status === "RUNNING" || machine.order?.status === "PAUSED") && machine.order ? (
                         <div className="space-y-4">
                             {/* Key Info Cards */}
                             <div className="p-3 bg-slate-50 rounded-xl space-y-2">
@@ -154,7 +158,13 @@ export default function HomePage() {
                             <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                                 <div>
                                     <p className="text-xs text-slate-400">Velocidad</p>
-                                    <p className="text-lg font-bold text-slate-900">{machine.metrics.currentSpeed} <span className="text-xs font-normal text-slate-500">gpm</span></p>
+                                    <p className="text-lg font-bold text-slate-900">
+                                        {machine.order.status === "PAUSED" ? (
+                                            <span className="text-yellow-600 text-sm">EN PAUSA</span>
+                                        ) : (
+                                            <>{machine.metrics.currentSpeed} <span className="text-xs font-normal text-slate-500">gpm</span></>
+                                        )}
+                                    </p>
                                 </div>
                                 <div className="flex flex-col items-end">
                                      <p className="text-xs text-slate-400">Desviación</p>
@@ -196,9 +206,13 @@ export default function HomePage() {
                <div>
                   <div className="flex items-center gap-3 mb-2">
                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                           selectedMachine.status === "RUNNING" ? "bg-green-500 text-slate-900" : "bg-red-500 text-white"
+                           selectedMachine.status === "RUNNING" ? "bg-green-500 text-slate-900" : 
+                           selectedMachine.order?.status === "PAUSED" ? "bg-yellow-400 text-yellow-900" :
+                           "bg-red-500 text-white"
                        }`}>
-                           {selectedMachine.status === "RUNNING" ? "EN PRODUCCIÓN" : "DETENIDA"}
+                           {selectedMachine.status === "RUNNING" ? "EN PRODUCCIÓN" : 
+                            selectedMachine.order?.status === "PAUSED" ? "EN PAUSA" :
+                            "DETENIDA"}
                        </span>
                   </div>
                   {selectedMachine.order && (
@@ -209,11 +223,17 @@ export default function HomePage() {
                   )}
                </div>
                
-               {selectedMachine.status === "RUNNING" && (
+               {(selectedMachine.status === "RUNNING" || selectedMachine.order?.status === "PAUSED") && (
                    <div className="flex gap-10 text-center">
                        <div>
                            <p className="text-slate-400 text-sm uppercase tracking-wider">Velocidad</p>
-                           <p className="text-6xl font-black">{selectedMachine.metrics.currentSpeed}<span className="text-xl font-normal text-slate-500 ml-1">gpm</span></p>
+                           <p className="text-6xl font-black">
+                               {selectedMachine.order?.status === "PAUSED" ? (
+                                   <span className="text-4xl text-yellow-400">PAUSA</span>
+                               ) : (
+                                   <>{selectedMachine.metrics.currentSpeed}<span className="text-xl font-normal text-slate-500 ml-1">gpm</span></>
+                               )}
+                           </p>
                        </div>
                        <div>
                            <p className="text-slate-400 text-sm uppercase tracking-wider">Avance</p>

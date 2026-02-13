@@ -22,6 +22,8 @@ export interface ActiveOrder {
   outputs: number; // Salidas troqueladora
   targetUnits?: number; // Optional target
   startTime: Date;
+  lastPauseStart?: Date; // New: Track pause start time
+  pauseReason?: string; // New: Track reason
   status: OrderStatus;
 }
 
@@ -64,6 +66,8 @@ interface DemoContextType {
   setStep: (step: DemoStep) => void;
   startMachineOrder: (machineId: string, ot: string, rut: string, outputs: number, target: number) => void;
   stopMachineOrder: (machineId: string) => void;
+  pauseMachine: (machineId: string, reason: string) => void;
+  resumeMachine: (machineId: string) => void;
   resetDemo: () => void;
 }
 
@@ -278,10 +282,62 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const pauseMachine = (machineId: string, reason: string) => {
+    setMachines(prev => prev.map(m => {
+        if (m.id !== machineId || !m.order) return m;
+        return {
+            ...m,
+            status: "IDLE", // Machine stops running physically
+            order: {
+                ...m.order,
+                status: "PAUSED",
+                lastPauseStart: new Date(),
+                pauseReason: reason
+            }
+        }
+    }));
+  };
+
+  const resumeMachine = (machineId: string) => {
+    const now = new Date();
+    setMachines(prev => prev.map(m => {
+        if (m.id !== machineId || !m.order || m.order.status !== "PAUSED") return m;
+        
+        // Calculate duration from pause start
+        const pauseStart = m.order.lastPauseStart || now;
+        const durationMs = now.getTime() - pauseStart.getTime();
+        const durationMin = Math.floor(durationMs / 60000);
+        const durationSec = Math.floor((durationMs % 60000) / 1000);
+        
+        const startTimeStr = format(pauseStart, "HH:mm");
+        const endTimeStr = format(now, "HH:mm");
+
+        const newStop: Stop = {
+            id: `stop-${Date.now()}`,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+            duration: `${durationMin}m ${durationSec}s`,
+            reason: m.order.pauseReason || "Pausa Operador"
+        };
+
+        return {
+            ...m,
+            status: "RUNNING",
+            order: {
+                ...m.order,
+                status: "RUNNING",
+                lastPauseStart: undefined,
+                pauseReason: undefined
+            },
+            stops: [...m.stops, newStop]
+        }
+    }));
+  };
+
   const stopMachineOrder = (machineId: string) => {
     setMachines(prev => prev.map(m => {
         if (m.id !== machineId) return m;
-         return {
+        return {
             ...m,
             status: "IDLE",
             order: null
@@ -299,7 +355,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <DemoContext.Provider value={{ machines, step, setStep, startMachineOrder, stopMachineOrder, resetDemo }}>
+    <DemoContext.Provider value={{ machines, step, setStep, startMachineOrder, stopMachineOrder, pauseMachine, resumeMachine, resetDemo }}>
       {children}
     </DemoContext.Provider>
   );

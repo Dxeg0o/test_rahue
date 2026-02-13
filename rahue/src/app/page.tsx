@@ -3,7 +3,7 @@
 import { useDemo } from "@/lib/demo-context";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -14,18 +14,6 @@ import {
   ResponsiveContainer
 } from "recharts";
 import { GeneralHistoryView } from "@/components/general-history-view";
-
-// --- Mock Data ---
-const performanceData = [
-  { time: "08:00", speed: 45, target: 50 },
-  { time: "09:00", speed: 52, target: 50 },
-  { time: "10:00", speed: 60, target: 50 },
-  { time: "11:00", speed: 20, target: 50 },
-  { time: "12:00", speed: 65, target: 50 },
-  { time: "13:00", speed: 62, target: 50 },
-];
-
-
 
 export default function HomePage() {
   const { machines } = useDemo();
@@ -38,6 +26,14 @@ export default function HomePage() {
   
   // Detail View Sub-tabs
   const [detailTab, setDetailTab] = useState<"production" | "quality" | "stops">("production");
+  const [mounted, setMounted] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  useEffect(() => {
+    setMounted(true);
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const selectedMachine = machines.find(m => m.id === selectedMachineId);
 
@@ -66,7 +62,7 @@ export default function HomePage() {
                     {selectedMachineId ? selectedMachine?.name : "Centro de Control"}
                 </h1>
                 <p className="text-sm text-slate-500">
-                    {format(new Date(), "PPP - HH:mm", { locale: es })}
+                    {mounted ? format(currentTime, "PPP - HH:mm", { locale: es }) : "Cargando fecha..."}
                 </p>
             </div>
         </div>
@@ -96,11 +92,20 @@ export default function HomePage() {
 
       {/* 1. LIVE VIEW (GRID) */}
       {!selectedMachineId && activeView === "live" && (
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {machines.map((machine) => {
              const progress = machine.order && machine.order.targetUnits 
                 ? getProgress(machine.metrics.totalUnits, machine.order.targetUnits) 
                 : 0;
+
+             // Calculate Traffic Light based on Std Dev
+             const stdDev = machine.metrics.standardDeviation || 0;
+             let trafficColor = "text-green-500";
+             if (stdDev > 4) trafficColor = "text-red-500";
+             else if (stdDev > 2) trafficColor = "text-yellow-500";
+             
+             // Triangle shape for traffic light container or icon
+             // Using a triangle SVG icon next to the indicator
                 
              return (
                 <div 
@@ -122,9 +127,12 @@ export default function HomePage() {
                                     <span className="text-slate-500">Orden (OT):</span>
                                     <span className="font-mono font-bold text-slate-900">{machine.order.id}</span>
                                 </div>
-                                <div className="flex justify-between text-sm">
+                                <div className="flex flex-col text-sm">
                                     <span className="text-slate-500">Operador:</span>
-                                    <span className="font-bold text-slate-900">{machine.order.operatorRut}</span>
+                                    <span className="font-bold text-slate-900 truncate">
+                                        {machine.order.operatorName}
+                                    </span>
+                                    <span className="text-xs text-slate-500">{machine.order.operatorRut}</span>
                                 </div>
                             </div>
 
@@ -142,10 +150,22 @@ export default function HomePage() {
                                 </div>
                             </div>
                             
-                            {/* Speed Mini-Indicator */}
+                            {/* Speed & Std Dev Indicator */}
                             <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                                <span className="text-xs text-slate-400">Velocidad Actual</span>
-                                <span className="text-lg font-bold text-slate-900">{machine.metrics.currentSpeed} <span className="text-xs font-normal text-slate-500">gpm</span></span>
+                                <div>
+                                    <p className="text-xs text-slate-400">Velocidad</p>
+                                    <p className="text-lg font-bold text-slate-900">{machine.metrics.currentSpeed} <span className="text-xs font-normal text-slate-500">gpm</span></p>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                     <p className="text-xs text-slate-400">Desviación</p>
+                                     <div className="flex items-center gap-1">
+                                        {/* Triangle Icon */}
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className={trafficColor}>
+                                            <path d="M12 2L2 22h20L12 2z" />
+                                        </svg>
+                                        <span className="text-sm font-bold text-slate-700">{stdDev.toFixed(2)}</span>
+                                     </div>
+                                </div>
                             </div>
                         </div>
                     ) : (
@@ -184,7 +204,7 @@ export default function HomePage() {
                   {selectedMachine.order && (
                       <div className="mt-4 space-y-1">
                           <p className="text-slate-400">Orden de Trabajo: <span className="text-white font-mono text-lg">{selectedMachine.order.id}</span></p>
-                          <p className="text-slate-400">Operador: <span className="text-white">{selectedMachine.order.operatorRut}</span></p>
+                          <p className="text-slate-400">Operador: <span className="text-white">{selectedMachine.order.operatorName} - {selectedMachine.order.operatorRut}</span></p>
                       </div>
                   )}
                </div>
@@ -201,6 +221,12 @@ export default function HomePage() {
                                 {selectedMachine.order?.targetUnits ? getProgress(selectedMachine.metrics.totalUnits, selectedMachine.order.targetUnits) : 0}%
                            </p>
                        </div>
+                       <div>
+                           <p className="text-slate-400 text-sm uppercase tracking-wider">ETA</p>
+                           <p className="text-6xl font-black text-emerald-400">
+                                14:30
+                           </p>
+                       </div>
                    </div>
                )}
             </div>
@@ -208,7 +234,7 @@ export default function HomePage() {
             {/* Inner Tabs for "Information Types" */}
              <div className="border-b border-slate-200">
                 <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                  {['production', 'quality', 'stops'].map((tab) => (
+                  {['production', 'stops'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setDetailTab(tab as "production" | "quality" | "stops")}
@@ -220,8 +246,7 @@ export default function HomePage() {
                       `}
                     >
                       {tab === 'production' && 'Producción en Vivo'}
-                      {tab === 'quality' && 'Control de Calidad'}
-                      {tab === 'stops' && 'Micro-Paradas'}
+                      {tab === 'stops' && 'Paradas'}
                     </button>
                   ))}
                 </nav>
@@ -232,10 +257,10 @@ export default function HomePage() {
                  {detailTab === "production" && (
                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                            <h3 className="mb-6 font-bold text-slate-900">Velocidad en Tiempo Real</h3>
+                            <h3 className="mb-6 font-bold text-slate-900">Velocidad en Tiempo Real (GPM)</h3>
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={selectedMachine.history && selectedMachine.history.length > 0 ? selectedMachine.history : [{time: format(new Date(), "HH:mm:ss"), speed: 0, target: 60}]}>
+                                    <AreaChart data={selectedMachine.history && selectedMachine.history.length > 0 ? selectedMachine.history : [{time: mounted ? format(currentTime, "HH:mm:ss") : "00:00:00", speed: 0, target: 60}]}>
                                         <defs>
                                             <linearGradient id="colorSpeed" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
@@ -244,7 +269,7 @@ export default function HomePage() {
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                         <XAxis dataKey="time" />
-                                        <YAxis domain={[0, 100]} />
+                                        <YAxis domain={[0, 400]} />
                                         <Tooltip />
                                         <Area type="monotone" dataKey="speed" stroke="#6366f1" fillOpacity={1} fill="url(#colorSpeed)" animationDuration={300} />
                                         <Area type="monotone" dataKey="target" stroke="#94a3b8" strokeDasharray="5 5" fill="none" />
@@ -255,54 +280,85 @@ export default function HomePage() {
                         <div className="space-y-6">
                             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                                 <h3 className="mb-4 font-bold text-slate-900">Indicadores Clave</h3>
-                                <ul className="space-y-4">
-                                    <li className="flex justify-between border-b pb-2">
-                                        <span className="text-slate-500">Unidades Producidas</span>
-                                        <span className="font-bold text-slate-900">{selectedMachine.metrics.totalUnits.toLocaleString()}</span>
-                                    </li>
-                                    <li className="flex justify-between border-b pb-2">
-                                        <span className="text-slate-500">Golpes Totales</span>
-                                        <span className="font-bold text-slate-900">{selectedMachine.metrics.totalHits.toLocaleString()}</span>
-                                    </li>
-                                    <li className="flex justify-between pb-2">
-                                        <span className="text-slate-500">Meta Turno</span>
-                                        <span className="font-bold text-slate-900">{selectedMachine.order?.targetUnits?.toLocaleString()}</span>
-                                    </li>
-                                </ul>
+                                
+                                <div className="space-y-6"> 
+                                    {/* Producción */}
+                                    <div>
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Producción</h4>
+                                        <ul className="space-y-2">
+                                            <li className="flex justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-slate-500 text-sm">Unidades Producidas</span>
+                                                <span className="font-bold text-slate-900">{selectedMachine.metrics.totalUnits.toLocaleString()}</span>
+                                            </li>
+                                            <li className="flex justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-slate-500 text-sm">Golpes Totales</span>
+                                                <span className="font-bold text-slate-900">{selectedMachine.metrics.totalHits.toLocaleString()}</span>
+                                            </li>
+                                            <li className="flex justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-slate-500 text-sm">Meta OT</span>
+                                                <span className="font-bold text-slate-900">{selectedMachine.order?.targetUnits?.toLocaleString()}</span>
+                                            </li>
+                                            <li className="flex justify-between pb-2">
+                                                <span className="text-slate-500 text-sm">Salidas por Golpe</span>
+                                                <span className="font-bold text-slate-900">{selectedMachine.metrics.outputsPerStroke}</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    {/* Rendimiento */}
+                                    <div>
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Rendimiento Máquina</h4>
+                                        <ul className="space-y-2">
+                                             <li className="flex justify-between border-b border-slate-100 pb-2">
+                                                <span className="text-slate-500 text-sm">Velocidad Min/Max</span>
+                                                <span className="font-bold text-slate-900">
+                                                    {selectedMachine.metrics.minSpeed} / {selectedMachine.metrics.maxSpeed}
+                                                </span>
+                                            </li>
+                                            <li className="flex justify-between pb-2">
+                                                <span className="text-slate-500 text-sm">Desviación Estándar</span>
+                                                <span className={`font-bold ${
+                                                    (selectedMachine.metrics.standardDeviation || 0) > 3 ? "text-red-500" : "text-slate-900"
+                                                }`}>
+                                                    {selectedMachine.metrics.standardDeviation?.toFixed(2)}
+                                                </span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                      </div>
                  )}
                  
-                 {detailTab === "quality" && (
-                     <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-                         <div className="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 text-2xl">✓</div>
-                         <h3 className="text-xl font-bold text-slate-900">Calidad: 100% Aprobada</h3>
-                         <p className="text-slate-500">No se han registrado rechazos en la OT actual.</p>
-                     </div>
-                 )}
-
                  {detailTab === "stops" && (
                       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                           <h3 className="mb-4 font-bold text-slate-900">Registro de Paradas</h3>
                           <table className="w-full text-left text-sm">
                               <thead className="bg-slate-50 uppercase text-xs text-slate-500">
                                   <tr>
-                                      <th className="px-4 py-2">Hora</th>
+                                      <th className="px-4 py-2">Hora Inicio</th>
+                                      <th className="px-4 py-2">Hora Término</th>
                                       <th className="px-4 py-2">Duración</th>
                                       <th className="px-4 py-2">Motivo</th>
                                   </tr>
                               </thead>
                               <tbody>
-                                  {performanceData.filter(d => d.speed < 30).map((stop, i) => (
-                                      <tr key={i} className="border-b">
-                                          <td className="px-4 py-3">{stop.time}</td>
-                                          <td className="px-4 py-3 font-medium text-red-600">5 min</td>
-                                          <td className="px-4 py-3 text-slate-500">Micro-parada (Velocidad Baja)</td>
+                                  {selectedMachine.stops && selectedMachine.stops.length > 0 ? (
+                                      selectedMachine.stops.map((stop, i) => (
+                                      <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
+                                          <td className="px-4 py-3">{stop.startTime}</td>
+                                          <td className="px-4 py-3 text-slate-500 font-mono">{stop.endTime}</td>
+                                          <td className="px-4 py-3 font-medium text-slate-700">{stop.duration}</td>
+                                          <td className="px-4 py-3 text-slate-500">
+                                              <span className="px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">
+                                                  {stop.reason}
+                                              </span>
+                                          </td>
                                       </tr>
-                                  ))}
-                                  {performanceData.filter(d => d.speed < 30).length === 0 && (
-                                     <tr><td colSpan={3} className="px-4 py-8 text-center text-slate-400">Sin paradas registradas</td></tr>
+                                      ))
+                                  ) : (
+                                      <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">Sin paradas registradas</td></tr>
                                   )}
                               </tbody>
                           </table>

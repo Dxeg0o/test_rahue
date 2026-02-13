@@ -7,9 +7,18 @@ import { format } from "date-fns";
 
 export type OrderStatus = "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED";
 
+export interface Stop {
+    id: string;
+    startTime: string;
+    endTime: string;
+    duration: string;
+    reason: string;
+}
+
 export interface ActiveOrder {
   id: string; // OT Number
-  operatorRut: string;
+  operatorName: string; // New: Name
+  operatorRut: string; // New: Rut
   outputs: number; // Salidas troqueladora
   targetUnits?: number; // Optional target
   startTime: Date;
@@ -21,6 +30,11 @@ export interface DemoMetrics {
   totalUnits: number; // hits * outputs
   hitsPerMinute: number;
   currentSpeed: number; // Hits per minute (instant)
+  // New indicators
+  minSpeed: number;
+  maxSpeed: number;
+  standardDeviation: number;
+  outputsPerStroke: number;
 }
 
 export interface HistoryPoint {
@@ -39,6 +53,7 @@ export interface MachineState {
   order: ActiveOrder | null;
   metrics: DemoMetrics;
   history: HistoryPoint[];
+  stops: Stop[]; // New: List of stops
   status: "IDLE" | "RUNNING";
   internalHits: number; // Float accumulator
 }
@@ -62,55 +77,98 @@ export function useDemo() {
   return context;
 }
 
+// --- Helper Functions ---
+const generateStops = (count: number): Stop[] => {
+    const reasons = ["Atasco de material", "Fallo sensor", "Cambio de bobina", "Ajuste de troquel", "Micro-parada"];
+    return Array.from({ length: count }).map((_, i) => {
+        const durationMin = Math.floor(Math.random() * 15) + 1;
+        const durationSec = Math.floor(Math.random() * 60);
+        
+        // Generate Start Time
+        const startHour = Math.floor(Math.random() * (17 - 8) + 8);
+        const startMin = Math.floor(Math.random() * 60);
+        const startTimeStr = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}`;
+        
+        // Calculate End Time
+        const totalStartMin = startHour * 60 + startMin;
+        const totalEndMin = totalStartMin + durationMin;
+        const endHour = Math.floor(totalEndMin / 60);
+        const endMin = totalEndMin % 60;
+        const endTimeStr = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
+
+        return {
+            id: `stop-${i}`,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+            duration: `${durationMin} min ${durationSec} seg`,
+            reason: reasons[Math.floor(Math.random() * reasons.length)]
+        };
+    });
+};
+
 // --- Generator Helper ---
 
-const generateInitialMachines = (): MachineState[] => {
+const generateInitialMachines = (randomize: boolean = false): MachineState[] => {
     const machines: MachineState[] = [];
-    // User's Machine
-    machines.push({
-        id: "machine-1",
-        name: "Troqueladora A",
-        status: "IDLE",
-        order: null,
-        metrics: { totalHits: 0, totalUnits: 0, hitsPerMinute: 0, currentSpeed: 0 },
-        history: [],
-        internalHits: 0
-    });
+    
+    const operators = [
+        { name: "Juan Perez Rosales", rut: "11.111.111-K" },
+        { name: "Maria Gonzalez", rut: "12.222.222-2" },
+        { name: "Carlos Lopez", rut: "13.333.333-3" },
+        { name: "Ana Torres", rut: "14.444.444-4" },
+        { name: "Pedro Sanchez", rut: "15.555.555-5" },
+        { name: "Laura Diaz", rut: "16.666.666-6" },
+        { name: "Jorge Martinez", rut: "17.777.777-7" },
+        { name: "Claudia Ruiz", rut: "18.888.888-8" }
+    ];
 
-    // Simulated Machines (B-H)
-    const machineNames = ["B", "C", "D", "E", "F", "G", "H"];
-    machineNames.forEach((letter, i) => {
-        const isRunning = i % 3 !== 0; // Some random status
+    // Create 8 machines
+    for (let i = 0; i < 8; i++) {
+        // Deterministic status for initial render
+        const isRunning = randomize ? (i !== 2 && i !== 6) : false; 
         const initialHits = isRunning ? 1500 + (i * 500) : 0;
+        
         machines.push({
-            id: `machine-${i + 2}`,
-            name: `Troqueladora ${letter}`,
+            id: `machine-${i + 1}`,
+            name: `Troqueladora ${i + 1}`,
             status: isRunning ? "RUNNING" : "IDLE",
             order: isRunning ? {
                 id: `OT-202${i}`,
-                operatorRut: `1${i}.456.789-k`,
-                outputs: 10,
+                operatorName: operators[i].name,
+                operatorRut: operators[i].rut,
+                outputs: 2, // Default outputs
                 targetUnits: 50000 + (i * 1000),
                 startTime: new Date(Date.now() - 3600000),
                 status: "RUNNING"
             } : null,
             metrics: { 
                 totalHits: initialHits, 
-                totalUnits: initialHits * 10, 
+                totalUnits: initialHits * 2, // 2 outputs
                 hitsPerMinute: 350, 
-                currentSpeed: isRunning ? 330 + (i * 5) : 0
+                currentSpeed: isRunning ? 330 + (i * 5) : 0,
+                minSpeed: isRunning ? 300 + (i * 2) : 0,
+                maxSpeed: isRunning ? 380 + (i * 2) : 0,
+                standardDeviation: isRunning ? parseFloat((Math.random() * 5 + 1).toFixed(2)) : 0, 
+                outputsPerStroke: 2
             },
             history: [],
+            stops: isRunning ? generateStops(Math.floor(Math.random() * 3) + 2) : [], 
             internalHits: initialHits
         });
-    });
+    }
 
     return machines;
 }
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [machines, setMachines] = useState<MachineState[]>(generateInitialMachines);
+  // Start with deterministic data (all IDLE) to match server
+  const [machines, setMachines] = useState<MachineState[]>(() => generateInitialMachines(false));
   const [step, setStep] = useState<DemoStep>("INTRO");
+
+  // On mount, switch to random data
+  useEffect(() => {
+      setMachines(generateInitialMachines(true));
+  }, []);
 
   // Simulation Loop (Runs every 1s)
   useEffect(() => {
@@ -166,10 +224,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
                 ...m,
                 internalHits: newInternalHits,
                 metrics: {
-                    ...m.metrics,
                     totalHits: newTotalHitsInt,
                     totalUnits: newTotalUnits,
-                    currentSpeed: newSpeed
+                currentSpeed: newSpeed,
+                    hitsPerMinute: 350, // Keep constant for demo or calc from speed
+                    // Preserve other metrics
+                    minSpeed: m.metrics.minSpeed,
+                    maxSpeed: m.metrics.maxSpeed,
+                    standardDeviation: m.metrics.standardDeviation,
+                    outputsPerStroke: m.metrics.outputsPerStroke
                 },
                 history: newHistory
             };
@@ -187,6 +250,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             status: "RUNNING",
             order: {
                 id: ot,
+                operatorName: "Juan Perez (Default)", // Default for manual start
                 operatorRut: rut,
                 outputs: outputs,
                 targetUnits: target,
@@ -197,8 +261,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
                 totalHits: 0,
                 totalUnits: 0,
                 hitsPerMinute: 350,
-                currentSpeed: 340 // Start speed
+                currentSpeed: 340, // Start speed
+                minSpeed: 300,
+                maxSpeed: 380,
+                standardDeviation: 1.5,
+                outputsPerStroke: outputs
             },
+            stops: [],
             history: [], // Reset history on new run
             internalHits: 0
         }
@@ -225,7 +294,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   };
 
   const resetDemo = () => {
-     setMachines(generateInitialMachines());
+     setMachines(generateInitialMachines(true));
      setStep("INTRO");
   }
 

@@ -15,8 +15,23 @@ export interface Stop {
     reason: string;
 }
 
+export type ProductStage = "Impresión" | "Troquelado" | "Formado";
+
+export interface ProductFlow {
+    name: string;
+    stages: ProductStage[];
+}
+
+export interface StageTimestamps {
+    start?: Date;
+    end?: Date;
+}
+
 export interface ActiveOrder {
   id: string; // OT Number
+  productName: string; // New: Product name representing the flow
+  flow: ProductStage[]; // New: The stages of this product
+  stageTimestamps?: Record<string, StageTimestamps>; // New: Timing for each stage
   operatorName: string; // New: Name
   operatorRut: string; // New: Rut
   outputs: number; // Salidas troqueladora
@@ -132,12 +147,41 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
         const isRunning = randomize ? (i !== 2 && i !== 6) : false; 
         const initialHits = isRunning ? 1500 + (i * 500) : 0;
         
+        // Assign a random flow
+        const rand = Math.random();
+        let flowName = "";
+        let flowStages: ProductStage[] = [];
+
+        if (rand < 0.33) {
+            flowName = "Cono";
+            flowStages = ["Impresión", "Troquelado", "Formado"];
+        } else if (rand < 0.66) {
+            flowName = "Tapas";
+            flowStages = ["Impresión", "Troquelado", "Formado"];
+        } else {
+            flowName = "Tapas Troqueladas";
+            flowStages = ["Impresión", "Troquelado"];
+        }
+
+        const currentStartTime = new Date(Date.now() - 3600000); // 1 hour ago
+        // Fake previous stages times
+        const printEnd = new Date(currentStartTime.getTime() - 45 * 60000);
+        const printStart = new Date(printEnd.getTime() - 3 * 3600000);
+
+        const stageTimestamps: Record<string, StageTimestamps> = {
+            "Impresión": { start: printStart, end: printEnd },
+            "Troquelado": { start: currentStartTime }
+        };
+
         machines.push({
             id: `machine-${i + 1}`,
             name: `Troqueladora ${i + 1}`,
             status: isRunning ? "RUNNING" : "IDLE",
             order: isRunning ? {
                 id: `OT-202${i}`,
+                productName: flowName,
+                flow: flowStages,
+                stageTimestamps: stageTimestamps,
                 operatorName: operators[i].name,
                 operatorRut: operators[i].rut,
                 outputs: 2, // Default outputs
@@ -249,11 +293,39 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const startMachineOrder = (machineId: string, ot: string, rut: string, outputs: number, target: number) => {
     setMachines(prev => prev.map(m => {
         if (m.id !== machineId) return m;
+
+        const rand = Math.random();
+        let flowName = "";
+        let flowStages: ProductStage[] = [];
+
+        if (rand < 0.33) {
+            flowName = "Cono";
+            flowStages = ["Impresión", "Troquelado", "Formado"];
+        } else if (rand < 0.66) {
+            flowName = "Tapas";
+            flowStages = ["Impresión", "Troquelado", "Formado"];
+        } else {
+            flowName = "Tapas Troqueladas";
+            flowStages = ["Impresión", "Troquelado"];
+        }
+
+        const now = new Date();
+        const stageTimestamps: Record<string, StageTimestamps> = {
+            "Impresión": { 
+                start: new Date(now.getTime() - 5 * 3600000), 
+                end: new Date(now.getTime() - 3 * 3600000) 
+            },
+            "Troquelado": { start: now }
+        };
+
         return {
             ...m,
             status: "RUNNING",
             order: {
                 id: ot,
+                productName: flowName,
+                flow: flowStages,
+                stageTimestamps: stageTimestamps,
                 operatorName: "Juan Perez (Default)", // Default for manual start
                 operatorRut: rut,
                 outputs: outputs,

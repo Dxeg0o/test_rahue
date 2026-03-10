@@ -65,9 +65,16 @@ export function ActiveOts() {
                 >
                     <div className="flex justify-between items-start mb-2">
                         <span className="font-bold text-slate-900">{m.order?.id}</span>
-                        <div className={`h-2.5 w-2.5 rounded-full ${m.status === "RUNNING" ? "bg-green-500 animate-pulse" : "bg-yellow-400 animate-pulse"}`} title={m.status === "RUNNING" ? "En Producción" : "En Pausa"} />
+                        <div className={`h-2.5 w-2.5 rounded-full ${m.status === "RUNNING" ? "bg-emerald-500" : "bg-yellow-400"}`} title={m.status === "RUNNING" ? "En Producción" : "En Pausa"} />
                     </div>
                     
+                    {m.order?.productName && (
+                        <div className="text-xs font-semibold text-indigo-600 mb-2 truncate flex justify-between items-center">
+                            <span>{m.order.productName}</span>
+                            <span className="text-slate-500 font-normal px-2 py-0.5 bg-slate-100 rounded-md">Etapa: Troquelado</span>
+                        </div>
+                    )}
+
                     <div className="space-y-1 text-sm text-slate-600 mb-3">
                         <div className="flex items-center gap-2">
                             <span className="w-4 text-center">🏭</span>
@@ -146,6 +153,84 @@ export function ActiveOts() {
                         }`}>
                             {selectedMachine.metrics.standardDeviation?.toFixed(2)}
                         </p>
+                    </div>
+                </div>
+
+                {/* Production Flow Stepper */}
+                <div className="mb-8 p-6 bg-slate-50 border border-slate-100 rounded-3xl">
+                    <h3 className="text-lg font-bold text-slate-900 mb-6">Flujo de Producción</h3>
+                    <div className="w-full relative px-2 sm:px-6">
+                        <div className="flex w-full relative z-10">
+                            {selectedMachine.order.flow?.map((stage, index, flowArr) => {
+                                const currentStageIndex = flowArr.indexOf("Troquelado");
+                                const isCompleted = index < currentStageIndex;
+                                const isCurrent = index === currentStageIndex;
+                                const isLast = index === flowArr.length - 1;
+                                const timestamps = selectedMachine.order!.stageTimestamps?.[stage];
+
+                                let circleClasses = "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm sm:text-base transition-all relative box-border ";
+                                let textClasses = "mt-4 text-sm font-bold text-center ";
+
+                                if (isCompleted) {
+                                    circleClasses += "bg-emerald-500 text-white shadow-sm shadow-emerald-200";
+                                    textClasses += "text-emerald-700";
+                                } else if (isCurrent) {
+                                    circleClasses += selectedMachine.status === "RUNNING" 
+                                        ? "bg-white border-[3px] border-indigo-600 ring-[6px] ring-indigo-50 shadow-sm" 
+                                        : "bg-white border-[3px] border-yellow-500 ring-[6px] ring-yellow-50 shadow-sm";
+                                    textClasses += selectedMachine.status === "RUNNING" ? "text-indigo-700" : "text-yellow-700";
+                                } else {
+                                    circleClasses += "bg-white border-2 border-slate-200 text-slate-500";
+                                    textClasses += "text-slate-500";
+                                }
+
+                                return (
+                                    <div key={stage} className="relative flex flex-col items-center flex-1">
+                                        {/* Forward connecting line */}
+                                        {!isLast && (
+                                            <div className="absolute top-5 sm:top-6 left-1/2 w-full h-[3px] bg-slate-200 -z-10" />
+                                        )}
+                                        {!isLast && isCompleted && (
+                                            <div className="absolute top-5 sm:top-6 left-1/2 w-full h-[3px] bg-emerald-400 -z-10" />
+                                        )}
+
+                                        <div className={circleClasses}>
+                                            {isCompleted ? (
+                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                </svg>
+                                            ) : isCurrent ? (
+                                                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full relative z-10 ${selectedMachine.status === "RUNNING" ? 'bg-indigo-600' : 'bg-yellow-500'}`} />
+                                            ) : (
+                                                <span className="relative z-10">{index + 1}</span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col items-center h-24 pt-1">
+                                            <span className={textClasses}>
+                                                {stage}
+                                                {isCurrent && <span className="block text-[11px] font-medium opacity-80 mt-1 font-normal">{selectedMachine.status === "RUNNING" ? "(En Curso)" : "(En Pausa)"}</span>}
+                                            </span>
+                                            <div className="text-[11px] text-center mt-3 font-medium rounded text-slate-500 tracking-tight">
+                                                {isCompleted && timestamps?.end && timestamps?.start ? (
+                                                    <div className="flex flex-col items-center justify-center space-y-0.5">
+                                                        <span>{format(new Date(timestamps.start), "HH:mm")}</span>
+                                                        <span className="text-slate-300 font-light leading-none">|</span>
+                                                        <span>{format(new Date(timestamps.end), "HH:mm")}</span>
+                                                    </div>
+                                                ) : isCurrent && timestamps?.start ? (
+                                                    <span className={`px-3 py-1.5 rounded-full font-bold ${selectedMachine.status === "RUNNING" ? "bg-indigo-100 text-indigo-700" : "bg-yellow-100 text-yellow-800"}`}>
+                                                        Desde {format(new Date(timestamps.start), "HH:mm")}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-300 italic">Pendiente</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 

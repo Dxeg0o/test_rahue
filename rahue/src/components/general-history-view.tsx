@@ -15,22 +15,34 @@ export function GeneralHistoryView() {
         
         {/* Navigation / Filter Bar */}
         <div className="flex items-center justify-between">
-            <div className="flex space-x-1 bg-slate-100 p-1 rounded-xl">
+            <div className="flex space-x-4 border-b border-slate-200">
                 <button 
                     onClick={() => setMode("OT")}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${mode === "OT" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                        mode === "OT"
+                        ? "border-indigo-500 text-indigo-600"
+                        : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                    }`}
                 >
                     Por OTs
                 </button>
                 <button 
                     onClick={() => setMode("WORKER")}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${mode === "WORKER" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                        mode === "WORKER"
+                        ? "border-indigo-500 text-indigo-600"
+                        : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                    }`}
                 >
                     Por Trabajador
                 </button>
                 <button 
                     onClick={() => setMode("TIME")}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${mode === "TIME" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                        mode === "TIME"
+                        ? "border-indigo-500 text-indigo-600"
+                        : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                    }`}
                 >
                     Por Fecha/Periodo
                 </button>

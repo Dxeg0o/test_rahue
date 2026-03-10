@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { OTDocument } from "@/lib/mockOtData";
+import { ProductionFlowStepper } from "./production-flow-stepper";
 
 interface OtDetailCardProps {
   ot: OTDocument;
@@ -50,9 +51,20 @@ export function OtDetailCard({ ot, onClose, className = "" }: OtDetailCardProps)
                 <p className="text-2xl font-bold text-indigo-600">{ot.averageSpeed} <span className="text-sm text-slate-400 font-normal">u/min</span></p>
             </div>
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Calidad</p>
-                <p className="text-2xl font-bold text-emerald-600">{ot.quality}%</p>
+                <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Desv. Estándar</p>
+                <p className={`text-2xl font-bold ${ot.standardDeviation > 3 ? "text-red-500" : "text-emerald-600"}`}>{ot.standardDeviation}</p>
             </div>
+            </div>
+
+            {/* Production Flow Stepper */}
+             <div className="mb-8 p-6 bg-slate-50 border border-slate-100 rounded-3xl mt-8">
+                <h3 className="text-lg font-bold text-slate-900 mb-6">Flujo de Producción ({ot.productName})</h3>
+                <ProductionFlowStepper
+                    flow={ot.flow}
+                    currentStageName="COMPLETADO"
+                    status="COMPLETED"
+                    stageTimestamps={ot.stageTimestamps}
+                />
             </div>
 
             {/* Detailed Stats List */}

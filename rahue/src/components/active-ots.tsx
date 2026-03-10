@@ -4,6 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useDemo, MachineState } from "@/lib/demo-context";
+import { ProductionFlowStepper } from "./production-flow-stepper";
 
 export function ActiveOts() {
   const { machines } = useDemo();
@@ -143,7 +144,7 @@ export function ActiveOts() {
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Velocidad Actual</p>
                         <p className="text-2xl font-bold text-indigo-600">
-                            {selectedMachine.status === "RUNNING" ? selectedMachine.metrics.currentSpeed : 0} <span className="text-sm text-slate-400 font-normal">GPM</span>
+                            {selectedMachine.status === "RUNNING" ? selectedMachine.metrics.currentSpeed : 0} <span className="text-sm text-slate-400 font-normal">{selectedMachine.metrics.speedUnit.toUpperCase()}</span>
                         </p>
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -159,104 +160,31 @@ export function ActiveOts() {
                 {/* Production Flow Stepper */}
                 <div className="mb-8 p-6 bg-slate-50 border border-slate-100 rounded-3xl">
                     <h3 className="text-lg font-bold text-slate-900 mb-6">Flujo de Producción</h3>
-                    <div className="w-full relative px-2 sm:px-6">
-                        <div className="flex w-full relative z-10">
-                            {selectedMachine.order.flow?.map((stage, index, flowArr) => {
-                                const currentStageIndex = flowArr.indexOf("Troquelado");
-                                const isCompleted = index < currentStageIndex;
-                                const isCurrent = index === currentStageIndex;
-                                const isLast = index === flowArr.length - 1;
-                                const timestamps = selectedMachine.order!.stageTimestamps?.[stage];
+                    {(() => {
+                        let etaString = "";
+                        const isCurrent = selectedMachine.order.flow?.indexOf("Troquelado") !== -1; // Basic assumption for ETA calculation presence
+                        if (isCurrent && selectedMachine.status === "RUNNING") {
+                            const { totalUnits, currentSpeed } = selectedMachine.metrics;
+                            const targetUnits = selectedMachine.order?.targetUnits || 0;
+                            if (targetUnits > totalUnits && currentSpeed > 0) {
+                                const remainingUnits = targetUnits - totalUnits;
+                                const remainingMinutes = remainingUnits / currentSpeed;
+                                const now = new Date();
+                                const etaDate = new Date(now.getTime() + remainingMinutes * 60000);
+                                etaString = format(etaDate, "HH:mm");
+                            }
+                        }
 
-                                let circleClasses = "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm sm:text-base transition-all relative box-border ";
-                                let textClasses = "mt-4 text-sm font-bold text-center ";
-
-                                // Calculate ETA for the current stage if running
-                                let etaString = "";
-                                if (isCurrent && selectedMachine.status === "RUNNING") {
-                                    const { totalUnits, currentSpeed } = selectedMachine.metrics;
-                                    const targetUnits = selectedMachine.order?.targetUnits || 0;
-                                    
-                                    if (targetUnits > totalUnits && currentSpeed > 0) {
-                                        const remainingUnits = targetUnits - totalUnits;
-                                        const remainingMinutes = remainingUnits / currentSpeed;
-                                        const now = new Date();
-                                        const etaDate = new Date(now.getTime() + remainingMinutes * 60000);
-                                        etaString = format(etaDate, "HH:mm");
-                                    }
-                                }
-
-                                if (isCompleted) {
-                                    circleClasses += "bg-emerald-500 text-white shadow-sm shadow-emerald-200";
-                                    textClasses += "text-emerald-700";
-                                } else if (isCurrent) {
-                                    circleClasses += selectedMachine.status === "RUNNING" 
-                                        ? "bg-white border-[3px] border-indigo-600 ring-[6px] ring-indigo-50 shadow-sm" 
-                                        : "bg-white border-[3px] border-yellow-500 ring-[6px] ring-yellow-50 shadow-sm";
-                                    textClasses += selectedMachine.status === "RUNNING" ? "text-indigo-700" : "text-yellow-700";
-                                } else {
-                                    circleClasses += "bg-white border-2 border-slate-200 text-slate-500";
-                                    textClasses += "text-slate-500";
-                                }
-
-                                return (
-                                    <div key={stage} className="relative flex flex-col items-center flex-1">
-                                        {/* Forward connecting line */}
-                                        {!isLast && (
-                                            <div className="absolute top-5 sm:top-6 left-1/2 w-full h-[3px] bg-slate-200 -z-10" />
-                                        )}
-                                        {!isLast && isCompleted && (
-                                            <div className="absolute top-5 sm:top-6 left-1/2 w-full h-[3px] bg-emerald-400 -z-10" />
-                                        )}
-
-                                        <div className={circleClasses}>
-                                            {isCompleted ? (
-                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                </svg>
-                                            ) : isCurrent ? (
-                                                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full relative z-10 ${selectedMachine.status === "RUNNING" ? 'bg-indigo-600' : 'bg-yellow-500'}`} />
-                                            ) : (
-                                                <span className="relative z-10">{index + 1}</span>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-col items-center h-28 pt-1">
-                                            <span className={textClasses}>
-                                                {stage}
-                                                {isCurrent && <span className="block text-[11px] font-medium opacity-80 mt-1 font-normal">{selectedMachine.status === "RUNNING" ? "(En Curso)" : "(En Pausa)"}</span>}
-                                            </span>
-                                            <div className="text-[11px] text-center mt-3 font-medium rounded text-slate-500 tracking-tight flex flex-col items-center gap-1.5 w-full">
-                                                {isCompleted && timestamps?.end && timestamps?.start ? (
-                                                    <div className="flex flex-col items-center justify-center space-y-0.5 mt-1">
-                                                        <span>{format(new Date(timestamps.start), "HH:mm")}</span>
-                                                        <span className="text-slate-300 font-light leading-none">|</span>
-                                                        <span>{format(new Date(timestamps.end), "HH:mm")}</span>
-                                                    </div>
-                                                ) : isCurrent && timestamps?.start ? (
-                                                    <>
-                                                        <span className={`px-2 py-1 rounded-md font-bold text-[10px] w-full max-w-[90px] ${selectedMachine.status === "RUNNING" ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-yellow-50 text-yellow-700 border border-yellow-100"}`}>
-                                                            Desde {format(new Date(timestamps.start), "HH:mm")}
-                                                        </span>
-                                                        {etaString && (
-                                                            <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold text-[10px] w-full max-w-[90px] flex items-center justify-center gap-1">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
-                                                                </svg>
-                                                                ETA {etaString}
-                                                            </span>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    <span className="text-slate-300 italic mt-1">Pendiente</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                        return (
+                            <ProductionFlowStepper
+                                flow={selectedMachine.order.flow || []}
+                                currentStageName="Troquelado"
+                                status={selectedMachine.status === "RUNNING" ? "RUNNING" : "PAUSED"}
+                                stageTimestamps={selectedMachine.order.stageTimestamps}
+                                etaString={etaString || undefined}
+                            />
+                        );
+                    })()}
                 </div>
 
                 {/* Detailed Stats List */}

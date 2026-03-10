@@ -1,5 +1,5 @@
-
-import { addMinutes, subDays, subHours } from "date-fns";
+import { addMinutes, subDays, subHours, subMinutes } from "date-fns";
+import { ProductStage, StageTimestamps } from "./demo-context";
 
 export interface OTDocument {
   id: string; // OT-XXXX
@@ -12,7 +12,11 @@ export interface OTDocument {
   targetUnits: number;
   averageSpeed: number; // units per minute
   stopsCount: number;
-  quality: number; // Percentage 0-100
+  standardDeviation: number; // Replaces quality
+  productName: string;
+  flow: ProductStage[];
+  stageTimestamps: Record<string, StageTimestamps>;
+  speedUnit: string;
 }
 
 export const WORKERS = [
@@ -23,7 +27,11 @@ export const WORKERS = [
   { id: "W5", name: "Pedro Sánchez", rut: "10.987.654-3" }
 ];
 
-const MACHINES = ["Troqueladora A", "Troqueladora B", "Troqueladora C", "Troqueladora D", "Troqueladora E"];
+const MACHINES = [
+    "Impresión 1", "Impresión 2", "Impresión 3",
+    "Troquelado 4", "Troquelado 5", "Troquelado 6", "Troquelado 7", "Troquelado 8", "Troquelado 9", "Troquelado 10", "Troquelado 11",
+    "Formado 12", "Formado 13", "Formado 14", "Formado 15"
+];
 
 // --- NEW: Pending OTs for Operator Selection ---
 export const PENDING_OTS = [
@@ -43,20 +51,56 @@ export function generateMockOTs(count: number = 300): OTDocument[] {
     const daysBack = Math.floor(Math.random() * 60);
     const startBase = subDays(now, daysBack);
     
-    // Duration 2 to 9 hours
-    const durationMinutes = 120 + Math.floor(Math.random() * 420);
-    const startTime = subHours(startBase, Math.random() * 8); // Randomize start time
-    const endTime = addMinutes(startTime, durationMinutes);
+    // Simulate 1 to 8 hours duration
+    const durationMinutes = Math.floor(Math.random() * 420) + 60; 
+    const endTime = addMinutes(startBase, Math.random() * 8 * 60 + durationMinutes); // Randomize end time
+    const startTime = subMinutes(endTime, durationMinutes);
+
+    const machineName = MACHINES[Math.floor(Math.random() * MACHINES.length)];
+    let speedUnit = "gpm";
+    if (machineName.startsWith("Impresión")) speedUnit = "m/min";
+    if (machineName.startsWith("Formado")) speedUnit = "u/min";
 
     // Productivity logic
     const avgSpeed = 40 + Math.floor(Math.random() * 50); // 40-90 units/min
     // Introduce some high/low performers
     const worker = WORKERS[Math.floor(Math.random() * WORKERS.length)];
-    const speedModifier = worker.name === "Juan Pérez" ? 1.2 : 1; 
+    const speedModifier = 0.8 + (Math.random() * 0.4); // 0.8x to 1.2x : 1; 
 
     const finalSpeed = Math.floor(avgSpeed * speedModifier);
     const unitsProduced = Math.floor(finalSpeed * durationMinutes * 0.85); 
     const targetUnits = Math.ceil(unitsProduced / 500) * 500; 
+
+    const rand = Math.random();
+    let flowName = "";
+    let flowStages: ProductStage[] = [];
+
+    if (rand < 0.33) {
+        flowName = "Cono";
+        flowStages = ["Impresión", "Troquelado", "Formado"];
+    } else if (rand < 0.66) {
+        flowName = "Tapas";
+        flowStages = ["Impresión", "Troquelado", "Formado"];
+    } else {
+        flowName = "Tapas Troqueladas";
+        flowStages = ["Impresión", "Troquelado"];
+    }
+
+    const stageTimestamps: Record<string, StageTimestamps> = {};
+    let currentStageStart = subHours(startTime, 2); // default print start
+
+    flowStages.forEach((stage) => {
+        if (stage === "Troquelado") {
+            stageTimestamps[stage] = { start: startTime, end: endTime };
+            currentStageStart = endTime;
+        } else if (stage === "Impresión") {
+            stageTimestamps[stage] = { start: currentStageStart, end: startTime };
+        } else if (stage === "Formado") {
+            const formEnd = addMinutes(currentStageStart, durationMinutes * 0.8);
+            stageTimestamps[stage] = { start: currentStageStart, end: formEnd };
+            currentStageStart = formEnd;
+        }
+    });
 
     ots.push({
       id: `OT-${25000 + i}`,
@@ -69,7 +113,11 @@ export function generateMockOTs(count: number = 300): OTDocument[] {
       targetUnits,
       averageSpeed: finalSpeed,
       stopsCount: Math.floor(Math.random() * 12),
-      quality: 90 + Math.floor(Math.random() * 10), // 90-100%
+      standardDeviation: Number((0.5 + Math.random() * 4.5).toFixed(2)),
+      productName: flowName,
+      flow: flowStages,
+      stageTimestamps,
+      speedUnit
     });
   }
 
@@ -87,7 +135,8 @@ export function getWorkerStats(workerName: string) {
 
   const totalUnits = workerOts.reduce((acc, ot) => acc + ot.unitsProduced, 0);
   const avgSpeed = Math.round(workerOts.reduce((acc, ot) => acc + ot.averageSpeed, 0) / totalOts);
-  const avgQuality = (workerOts.reduce((acc, ot) => acc + ot.quality, 0) / totalOts).toFixed(1);
+  const avgStandardDeviation = (workerOts.reduce((acc, ot) => acc + ot.standardDeviation, 0) / totalOts).toFixed(2);
+  const lastUnit = workerOts.length > 0 ? workerOts[0].speedUnit : "u/m";
 
   return {
     name: workerName,
@@ -95,7 +144,8 @@ export function getWorkerStats(workerName: string) {
     totalOts,
     totalUnits,
     avgSpeed,
-    avgQuality,
-    recentOts: workerOts.slice(0, 10), // last 10
+    avgStandardDeviation,
+    recentOts: workerOts.slice(0, 5),
+    lastUnit
   };
 }

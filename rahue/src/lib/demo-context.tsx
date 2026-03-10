@@ -52,6 +52,7 @@ export interface DemoMetrics {
   maxSpeed: number;
   standardDeviation: number;
   outputsPerStroke: number;
+  speedUnit: string;
 }
 
 export interface HistoryPoint {
@@ -67,6 +68,7 @@ export type DemoStep = "INTRO" | "OPERATOR_START" | "DASHBOARD_VIEW" | "OPERATOR
 export interface MachineState {
   id: string; // "machine-1", "machine-2"
   name: string;
+  area: "Impresión" | "Troquelado" | "Formado";
   order: ActiveOrder | null;
   metrics: DemoMetrics;
   history: HistoryPoint[];
@@ -97,8 +99,26 @@ export function useDemo() {
 }
 
 // --- Helper Functions ---
-const generateStops = (count: number): Stop[] => {
-    const reasons = ["Atasco de material", "Fallo sensor", "Cambio de bobina", "Ajuste de troquel", "Micro-parada"];
+const generateStops = (count: number, randomize: boolean = true): Stop[] => {
+    const reasons = [
+        "Ajuste de máquina",
+        "Cambio de bobina",
+        "Falla eléctrica",
+        "Limpieza programada",
+        "Almuerzo operador",
+        "Falta de material"
+    ];
+
+    if (!randomize) {
+      return Array.from({ length: count }).map((_, i) => ({
+          id: `stop-${i}`,
+          startTime: "10:00",
+          endTime: "10:15",
+          duration: "15 min 0 seg",
+          reason: reasons[i % reasons.length]
+      }));
+    }
+
     return Array.from({ length: count }).map((_, i) => {
         const durationMin = Math.floor(Math.random() * 15) + 1;
         const durationSec = Math.floor(Math.random() * 60);
@@ -140,53 +160,82 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
         { name: "Jorge Martinez", rut: "17.777.777-7" },
         { name: "Claudia Ruiz", rut: "18.888.888-8" }
     ];
+    
+    // Machine areas assignment:
+    // 3 -> Impresión
+    // 8 -> Troquelado
+    // 4 -> Formado
+    const areaMap = [
+        "Impresión", "Impresión", "Impresión",
+        "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado",
+        "Formado", "Formado", "Formado", "Formado"
+    ] as const;
 
-    // Create 8 machines
-    for (let i = 0; i < 8; i++) {
+    // Create 15 machines
+    for (let i = 0; i < 15; i++) {
         // Deterministic status for initial render
-        const isRunning = randomize ? (i !== 2 && i !== 6) : false; 
-        const initialHits = isRunning ? 1500 + (i * 500) : 0;
+        const isRunning = true; 
+        const initialHits = 1500 + (i * 500);
         
-        // Assign a random flow
-        const rand = Math.random();
+        const area = areaMap[i];
+        let speedUnit = "gpm";
+        if (area === "Impresión") speedUnit = "m/min";
+        if (area === "Formado") speedUnit = "u/min";
+
         let flowName = "";
         let flowStages: ProductStage[] = [];
+        let stageTimestamps: Record<string, StageTimestamps> = {};
 
-        if (rand < 0.33) {
+        const baseTime = randomize ? Date.now() : 1700000000000; // Fixed date for SSR
+
+        if (area === "Impresión") {
+            const rand = randomize ? Math.random() : (i % 2 === 0 ? 0.2 : 0.8);
+            flowName = rand < 0.5 ? "Cono" : "Tapas Troqueladas";
+            flowStages = rand < 0.5 ? ["Impresión", "Troquelado", "Formado"] : ["Impresión", "Troquelado"];
+            stageTimestamps = {
+                "Impresión": { start: new Date(baseTime - 3600000) }
+            };
+        } else if (area === "Troquelado") {
+            const rand = randomize ? Math.random() : (i % 2 === 0 ? 0.2 : 0.8);
+            flowName = rand < 0.5 ? "Cono" : "Tapas Troqueladas";
+            flowStages = rand < 0.5 ? ["Impresión", "Troquelado", "Formado"] : ["Impresión", "Troquelado"];
+            const printStart = new Date(baseTime - 4 * 3600000);
+            const printEnd = new Date(baseTime - 2 * 3600000);
+            stageTimestamps = {
+                "Impresión": { start: printStart, end: printEnd },
+                "Troquelado": { start: new Date(baseTime - 3600000) }
+            };
+        } else {
             flowName = "Cono";
             flowStages = ["Impresión", "Troquelado", "Formado"];
-        } else if (rand < 0.66) {
-            flowName = "Tapas";
-            flowStages = ["Impresión", "Troquelado", "Formado"];
-        } else {
-            flowName = "Tapas Troqueladas";
-            flowStages = ["Impresión", "Troquelado"];
+            const printStart = new Date(baseTime - 7 * 3600000);
+            const printEnd = new Date(baseTime - 5 * 3600000);
+            const troqStart = new Date(baseTime - 4 * 3600000);
+            const troqEnd = new Date(baseTime - 2 * 3600000);
+            stageTimestamps = {
+                "Impresión": { start: printStart, end: printEnd },
+                "Troquelado": { start: troqStart, end: troqEnd },
+                "Formado": { start: new Date(baseTime - 3600000) }
+            };
         }
 
-        const currentStartTime = new Date(Date.now() - 3600000); // 1 hour ago
-        // Fake previous stages times
-        const printEnd = new Date(currentStartTime.getTime() - 45 * 60000);
-        const printStart = new Date(printEnd.getTime() - 3 * 3600000);
-
-        const stageTimestamps: Record<string, StageTimestamps> = {
-            "Impresión": { start: printStart, end: printEnd },
-            "Troquelado": { start: currentStartTime }
-        };
+        const operatorInfo = operators[i % operators.length];
 
         machines.push({
             id: `machine-${i + 1}`,
-            name: `Troqueladora ${i + 1}`,
+            name: `${areaMap[i]} ${i + 1}`,
+            area: areaMap[i],
             status: isRunning ? "RUNNING" : "IDLE",
             order: isRunning ? {
                 id: `OT-202${i}`,
                 productName: flowName,
                 flow: flowStages,
                 stageTimestamps: stageTimestamps,
-                operatorName: operators[i].name,
-                operatorRut: operators[i].rut,
+                operatorName: operatorInfo.name,
+                operatorRut: operatorInfo.rut,
                 outputs: 2, // Default outputs
                 targetUnits: 50000 + (i * 1000),
-                startTime: new Date(Date.now() - 3600000),
+                startTime: new Date(baseTime - 3600000),
                 status: "RUNNING"
             } : null,
             metrics: { 
@@ -196,11 +245,12 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
                 currentSpeed: isRunning ? 330 + (i * 5) : 0,
                 minSpeed: isRunning ? 300 + (i * 2) : 0,
                 maxSpeed: isRunning ? 380 + (i * 2) : 0,
-                standardDeviation: isRunning ? parseFloat((Math.random() * 5 + 1).toFixed(2)) : 0, 
-                outputsPerStroke: 2
+                standardDeviation: isRunning ? parseFloat(((randomize ? Math.random() : 0.5) * 5 + 1).toFixed(2)) : 0, 
+                outputsPerStroke: 2,
+                speedUnit: speedUnit
             },
             history: [],
-            stops: isRunning ? generateStops(Math.floor(Math.random() * 3) + 2) : [], 
+            stops: isRunning ? generateStops(randomize ? Math.floor(Math.random() * 3) + 2 : 2, randomize) : [], 
             internalHits: initialHits
         });
     }
@@ -280,7 +330,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
                     minSpeed: m.metrics.minSpeed,
                     maxSpeed: m.metrics.maxSpeed,
                     standardDeviation: m.metrics.standardDeviation,
-                    outputsPerStroke: m.metrics.outputsPerStroke
+                    outputsPerStroke: m.metrics.outputsPerStroke,
+                    speedUnit: m.metrics.speedUnit
                 },
                 history: newHistory
             };
@@ -341,7 +392,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
                 minSpeed: 300,
                 maxSpeed: 380,
                 standardDeviation: 1.5,
-                outputsPerStroke: outputs
+                outputsPerStroke: outputs,
+                speedUnit: m.metrics.speedUnit
             },
             stops: [],
             history: [], // Reset history on new run

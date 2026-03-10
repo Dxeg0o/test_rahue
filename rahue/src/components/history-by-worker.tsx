@@ -84,11 +84,13 @@ export function HistoryByWorker() {
                              </div>
                              <div className="bg-white/5 p-4 rounded-xl">
                                  <p className="text-slate-400 text-xs uppercase tracking-wider">Vel. Promedio</p>
-                                 <p className="text-2xl font-bold">{selectedWorkerStats.avgSpeed} <span className="text-sm font-normal text-slate-500">gpm</span></p>
+                                 <p className="text-2xl font-bold">{selectedWorkerStats.avgSpeed} <span className="text-sm font-normal text-slate-500">{selectedWorkerStats.lastUnit}</span></p>
                              </div>
                              <div className="bg-white/5 p-4 rounded-xl">
-                                 <p className="text-slate-400 text-xs uppercase tracking-wider">Calidad</p>
-                                 <p className="text-2xl font-bold text-indigo-400">{selectedWorkerStats.avgQuality}%</p>
+                                 <p className="text-slate-400 text-xs uppercase tracking-wider">Desviación</p>
+                                 <p className={`text-2xl font-bold ${Number(selectedWorkerStats.avgStandardDeviation) > 3 ? "text-red-400" : "text-emerald-400"}`}>
+                                    {selectedWorkerStats.avgStandardDeviation}
+                                 </p>
                              </div>
                          </div>
                     </div>

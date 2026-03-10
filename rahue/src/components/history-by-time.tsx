@@ -101,7 +101,7 @@ export function HistoryByTime() {
                                 cursor={{fill: '#f1f5f9'}}
                                 contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
                              />
-                             <Bar dataKey="units" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                             <Bar dataKey="units" fill="#007bff" radius={[4, 4, 0, 0]} maxBarSize={50} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>

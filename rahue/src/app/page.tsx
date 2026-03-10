@@ -306,15 +306,15 @@ export default function HomePage() {
                                     <AreaChart data={selectedMachine.history && selectedMachine.history.length > 0 ? selectedMachine.history : [{time: mounted ? format(currentTime, "HH:mm:ss") : "00:00:00", speed: 0, target: 60}]}>
                                         <defs>
                                             <linearGradient id="colorSpeed" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                                <stop offset="5%" stopColor="#007bff" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#007bff" stopOpacity={0}/>
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                         <XAxis dataKey="time" />
                                         <YAxis domain={[0, 400]} />
                                         <Tooltip />
-                                        <Area type="monotone" dataKey="speed" stroke="#6366f1" fillOpacity={1} fill="url(#colorSpeed)" animationDuration={300} />
+                                        <Area type="monotone" dataKey="speed" stroke="#007bff" fillOpacity={1} fill="url(#colorSpeed)" animationDuration={300} />
                                         <Area type="monotone" dataKey="target" stroke="#94a3b8" strokeDasharray="5 5" fill="none" />
                                     </AreaChart>
                                 </ResponsiveContainer>

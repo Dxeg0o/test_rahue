@@ -13,6 +13,18 @@
   --color-card: var(--card);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Primary color palette based on #007bff */
+  --color-indigo-50: #f0f7ff;
+  --color-indigo-100: #dfeeff;
+  --color-indigo-200: #b9ddff;
+  --color-indigo-300: #7bc4ff;
+  --color-indigo-400: #33a4ff;
+  --color-indigo-500: #007bff;
+  --color-indigo-600: #0062d9;
+  --color-indigo-700: #004fb0;
+  --color-indigo-800: #004391;
+  --color-indigo-900: #003878;
 }
 
 body {

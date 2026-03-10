@@ -68,7 +68,7 @@ export default function StatsPage() {
                 <XAxis type="number" domain={[0, 100]} />
                 <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
                 <Tooltip cursor={{ fill: "#f1f5f9" }} />
-                <Bar dataKey="efficiency" fill="#4f46e5" radius={[0, 4, 4, 0]} barSize={32} />
+                <Bar dataKey="efficiency" fill="#0062d9" radius={[0, 4, 4, 0]} barSize={32} />
               </BarChart>
             </ResponsiveContainer>
           </div>

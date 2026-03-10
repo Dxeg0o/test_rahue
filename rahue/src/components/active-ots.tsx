@@ -171,6 +171,21 @@ export function ActiveOts() {
                                 let circleClasses = "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm sm:text-base transition-all relative box-border ";
                                 let textClasses = "mt-4 text-sm font-bold text-center ";
 
+                                // Calculate ETA for the current stage if running
+                                let etaString = "";
+                                if (isCurrent && selectedMachine.status === "RUNNING") {
+                                    const { totalUnits, currentSpeed } = selectedMachine.metrics;
+                                    const targetUnits = selectedMachine.order?.targetUnits || 0;
+                                    
+                                    if (targetUnits > totalUnits && currentSpeed > 0) {
+                                        const remainingUnits = targetUnits - totalUnits;
+                                        const remainingMinutes = remainingUnits / currentSpeed;
+                                        const now = new Date();
+                                        const etaDate = new Date(now.getTime() + remainingMinutes * 60000);
+                                        etaString = format(etaDate, "HH:mm");
+                                    }
+                                }
+
                                 if (isCompleted) {
                                     circleClasses += "bg-emerald-500 text-white shadow-sm shadow-emerald-200";
                                     textClasses += "text-emerald-700";
@@ -206,24 +221,34 @@ export function ActiveOts() {
                                             )}
                                         </div>
 
-                                        <div className="flex flex-col items-center h-24 pt-1">
+                                        <div className="flex flex-col items-center h-28 pt-1">
                                             <span className={textClasses}>
                                                 {stage}
                                                 {isCurrent && <span className="block text-[11px] font-medium opacity-80 mt-1 font-normal">{selectedMachine.status === "RUNNING" ? "(En Curso)" : "(En Pausa)"}</span>}
                                             </span>
-                                            <div className="text-[11px] text-center mt-3 font-medium rounded text-slate-500 tracking-tight">
+                                            <div className="text-[11px] text-center mt-3 font-medium rounded text-slate-500 tracking-tight flex flex-col items-center gap-1.5 w-full">
                                                 {isCompleted && timestamps?.end && timestamps?.start ? (
-                                                    <div className="flex flex-col items-center justify-center space-y-0.5">
+                                                    <div className="flex flex-col items-center justify-center space-y-0.5 mt-1">
                                                         <span>{format(new Date(timestamps.start), "HH:mm")}</span>
                                                         <span className="text-slate-300 font-light leading-none">|</span>
                                                         <span>{format(new Date(timestamps.end), "HH:mm")}</span>
                                                     </div>
                                                 ) : isCurrent && timestamps?.start ? (
-                                                    <span className={`px-3 py-1.5 rounded-full font-bold ${selectedMachine.status === "RUNNING" ? "bg-indigo-100 text-indigo-700" : "bg-yellow-100 text-yellow-800"}`}>
-                                                        Desde {format(new Date(timestamps.start), "HH:mm")}
-                                                    </span>
+                                                    <>
+                                                        <span className={`px-2 py-1 rounded-md font-bold text-[10px] w-full max-w-[90px] ${selectedMachine.status === "RUNNING" ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-yellow-50 text-yellow-700 border border-yellow-100"}`}>
+                                                            Desde {format(new Date(timestamps.start), "HH:mm")}
+                                                        </span>
+                                                        {etaString && (
+                                                            <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold text-[10px] w-full max-w-[90px] flex items-center justify-center gap-1">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
+                                                                </svg>
+                                                                ETA {etaString}
+                                                            </span>
+                                                        )}
+                                                    </>
                                                 ) : (
-                                                    <span className="text-slate-300 italic">Pendiente</span>
+                                                    <span className="text-slate-300 italic mt-1">Pendiente</span>
                                                 )}
                                             </div>
                                         </div>

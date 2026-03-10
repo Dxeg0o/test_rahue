@@ -1,13 +1,17 @@
 "use client";
 
 import { useDemo } from "@/lib/demo-context";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export function DemoWizard() {
   const { step, setStep } = useDemo();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isExpanded, setIsExpanded] = useState(true);
+
+  // Hide entirely in embed mode
+  if (searchParams.get("embed") === "true") return null;
 
   const toggleView = () => {
     if (step === "OPERATOR_START") {

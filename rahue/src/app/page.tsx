@@ -3,7 +3,8 @@
 import { useDemo } from "@/lib/demo-context";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AreaChart,
   Area,
@@ -20,6 +21,8 @@ import { MachineCardCompact } from "@/components/machine-card-compact";
 
 export default function HomePage() {
   const { machines } = useDemo();
+  const searchParams = useSearchParams();
+  const isEmbed = searchParams.get("embed") === "true";
 
   // High-level Tabs: "View Mode"
   const [activeView, setActiveView] = useState<"live" | "history" | "workers">("live");
@@ -70,13 +73,17 @@ export default function HomePage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-6 py-10">
-      
-      {/* Header */}
+    <main className={isEmbed
+      ? "flex min-h-screen w-full flex-col"
+      : "mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-6 py-10"
+    }>
+
+      {/* Header (hidden in embed mode) */}
+      {!isEmbed && (
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex gap-4 items-center">
             {selectedMachineId && (
-                <button 
+                <button
                     onClick={() => setSelectedMachineId(null)}
                     className="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
                 >
@@ -93,6 +100,7 @@ export default function HomePage() {
             </div>
         </div>
       </header>
+      )}
 
       {/* Main Navigation Tabs (Only visible in Main View) */}
       {!selectedMachineId && (

@@ -5,9 +5,10 @@ import { MachineState } from "@/lib/demo-context";
 interface MachineCardProps {
     machine: MachineState;
     onClick: () => void;
+    onOtClick?: () => void;
 }
 
-export function MachineCard({ machine, onClick }: MachineCardProps) {
+export function MachineCard({ machine, onClick, onOtClick }: MachineCardProps) {
     const getProgress = (current: number, target: number) => {
         if (!target || target === 0) return 0;
         return Math.min(100, Math.round((current / target) * 100));
@@ -44,7 +45,12 @@ export function MachineCard({ machine, onClick }: MachineCardProps) {
                     <div className="p-3 bg-slate-50 rounded-xl space-y-2">
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-500">Orden (OT):</span>
-                            <span className="font-mono font-bold text-slate-900">{machine.order.id}</span>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onOtClick?.(); }}
+                                className="font-mono font-bold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
+                            >
+                                {machine.order.id}
+                            </button>
                         </div>
                         <div className="flex flex-col text-sm">
                             <span className="text-slate-500">Operador:</span>

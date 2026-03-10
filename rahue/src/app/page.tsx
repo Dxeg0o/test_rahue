@@ -16,19 +16,40 @@ import {
 import { GeneralHistoryView } from "@/components/general-history-view";
 import { ActiveOts } from "@/components/active-ots";
 import { MachineCard } from "@/components/machine-card";
+import { MachineCardCompact } from "@/components/machine-card-compact";
 
 export default function HomePage() {
   const { machines } = useDemo();
-  
+
   // High-level Tabs: "View Mode"
   const [activeView, setActiveView] = useState<"live" | "history" | "workers">("live");
-  
+
   // Live View Sub-tab
-  const [liveViewMode, setLiveViewMode] = useState<"general" | "machines" | "ots">("general");
+  const [liveViewMode, setLiveViewMode] = useState<"general" | "ots">("general");
 
   // Drill-down State
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
-  
+
+  // OT navigation from cards
+  const [otInitialMachineId, setOtInitialMachineId] = useState<string | null>(null);
+
+  const handleOtClick = (machineId: string) => {
+    setOtInitialMachineId(machineId);
+    setLiveViewMode("ots");
+  };
+
+  // Expanded areas in Vista General
+  const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
+
+  const toggleArea = (area: string) => {
+    setExpandedAreas(prev => {
+      const next = new Set(prev);
+      if (next.has(area)) next.delete(area);
+      else next.add(area);
+      return next;
+    });
+  };
+
   // Detail View Sub-tabs
   const [detailTab, setDetailTab] = useState<"production" | "quality" | "stops">("production");
   const [mounted, setMounted] = useState(false);
@@ -111,16 +132,6 @@ export default function HomePage() {
                     Vista General
                 </button>
                 <button
-                    onClick={() => setLiveViewMode("machines")}
-                    className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                        liveViewMode === "machines"
-                        ? "border-indigo-500 text-indigo-600"
-                        : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                    }`}
-                >
-                    Todas las máquinas
-                </button>
-                <button
                     onClick={() => setLiveViewMode("ots")}
                     className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                         liveViewMode === "ots"
@@ -133,30 +144,71 @@ export default function HomePage() {
             </div>
 
             {liveViewMode === "general" ? (
-                <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {["Impresión", "Troquelado", "Formado"].map(area => {
                         const areaMachines = machines.filter(m => m.area === area);
                         if (areaMachines.length === 0) return null;
+                        const isExpanded = expandedAreas.has(area);
+                        const runningCount = areaMachines.filter(m => m.status === "RUNNING").length;
+                        const pausedCount = areaMachines.filter(m => m.order?.status === "PAUSED").length;
+
                         return (
-                            <section key={area} className="space-y-4">
-                                <h2 className="text-xl font-bold border-b border-slate-200 pb-2 text-slate-800">{area}</h2>
-                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                                    {areaMachines.map((machine) => (
-                                        <MachineCard key={machine.id} machine={machine} onClick={() => setSelectedMachineId(machine.id)} />
-                                    ))}
+                            <section key={area} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                {/* Area header */}
+                                <div className="flex items-center justify-between px-5 py-4 bg-slate-50/80 border-b border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <h2 className="text-base font-bold text-slate-800">{area}</h2>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="flex items-center gap-1 text-green-600">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                                {runningCount}
+                                            </span>
+                                            {pausedCount > 0 && (
+                                                <span className="flex items-center gap-1 text-yellow-600">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                                                    {pausedCount}
+                                                </span>
+                                            )}
+                                            <span className="text-slate-400">{areaMachines.length} total</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => toggleArea(area)}
+                                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                    >
+                                        {isExpanded ? "Compactar" : "Expandir"}
+                                        <svg
+                                            width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                            className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
+                                        >
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                {/* Machine cards */}
+                                <div className="p-4">
+                                    {isExpanded ? (
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in duration-300">
+                                            {areaMachines.map((machine) => (
+                                                <MachineCard key={machine.id} machine={machine} onClick={() => setSelectedMachineId(machine.id)} onOtClick={() => handleOtClick(machine.id)} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                            {areaMachines.map((machine) => (
+                                                <MachineCardCompact key={machine.id} machine={machine} onClick={() => setSelectedMachineId(machine.id)} onOtClick={() => handleOtClick(machine.id)} />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </section>
                         );
                     })}
                 </div>
-            ) : liveViewMode === "machines" ? (
-                <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  {machines.map((machine) => (
-                     <MachineCard key={machine.id} machine={machine} onClick={() => setSelectedMachineId(machine.id)} />
-                  ))}
-                </section>
             ) : (
-                <ActiveOts />
+                <ActiveOts initialSelectedId={otInitialMachineId} onInitialConsumed={() => setOtInitialMachineId(null)} />
             )}
         </div>
       )}

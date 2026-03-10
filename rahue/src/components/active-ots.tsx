@@ -1,15 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useDemo, MachineState } from "@/lib/demo-context";
+import { useDemo, MachineState, ProductStage } from "@/lib/demo-context";
 import { ProductionFlowStepper } from "./production-flow-stepper";
 
-export function ActiveOts() {
+interface ActiveOtsProps {
+  initialSelectedId?: string | null;
+  onInitialConsumed?: () => void;
+}
+
+export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsProps) {
   const { machines } = useDemo();
   const [search, setSearch] = useState("");
-  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
+  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(initialSelectedId ?? null);
+
+  useEffect(() => {
+    if (initialSelectedId) {
+      setSelectedMachineId(initialSelectedId);
+      onInitialConsumed?.();
+    }
+  }, [initialSelectedId, onInitialConsumed]);
 
   // Filter machines that have an active order (RUNNING or PAUSED)
   const activeMachines = machines.filter(m => m.order !== null);
@@ -72,7 +84,7 @@ export function ActiveOts() {
                     {m.order?.productName && (
                         <div className="text-xs font-semibold text-indigo-600 mb-2 truncate flex justify-between items-center">
                             <span>{m.order.productName}</span>
-                            <span className="text-slate-500 font-normal px-2 py-0.5 bg-slate-100 rounded-md">Etapa: Troquelado</span>
+                            <span className="text-slate-500 font-normal px-2 py-0.5 bg-slate-100 rounded-md">Etapa: {m.area}</span>
                         </div>
                     )}
 
@@ -161,9 +173,9 @@ export function ActiveOts() {
                 <div className="mb-8 p-6 bg-slate-50 border border-slate-100 rounded-3xl">
                     <h3 className="text-lg font-bold text-slate-900 mb-6">Flujo de Producción</h3>
                     {(() => {
+                        const currentStage = selectedMachine.area as ProductStage;
                         let etaString = "";
-                        const isCurrent = selectedMachine.order.flow?.indexOf("Troquelado") !== -1; // Basic assumption for ETA calculation presence
-                        if (isCurrent && selectedMachine.status === "RUNNING") {
+                        if (selectedMachine.status === "RUNNING") {
                             const { totalUnits, currentSpeed } = selectedMachine.metrics;
                             const targetUnits = selectedMachine.order?.targetUnits || 0;
                             if (targetUnits > totalUnits && currentSpeed > 0) {
@@ -178,7 +190,7 @@ export function ActiveOts() {
                         return (
                             <ProductionFlowStepper
                                 flow={selectedMachine.order.flow || []}
-                                currentStageName="Troquelado"
+                                currentStageName={currentStage}
                                 status={selectedMachine.status === "RUNNING" ? "RUNNING" : "PAUSED"}
                                 stageTimestamps={selectedMachine.order.stageTimestamps}
                                 etaString={etaString || undefined}

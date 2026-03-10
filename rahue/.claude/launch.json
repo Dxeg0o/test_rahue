@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "/opt/homebrew/Cellar/node/23.4.0/bin/node",
+      "runtimeArgs": ["/Users/diegosolerolguin/Documents/programming/test_rahue/rahue/node_modules/.bin/next", "dev"],
+      "port": 3000
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 import { useDemo } from "@/lib/demo-context";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   AreaChart,
@@ -20,6 +20,14 @@ import { MachineCard } from "@/components/machine-card";
 import { MachineCardCompact } from "@/components/machine-card-compact";
 
 export default function HomePage() {
+  return (
+    <Suspense>
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+function HomePageContent() {
   const { machines } = useDemo();
   const searchParams = useSearchParams();
   const isEmbed = searchParams.get("embed") === "true";

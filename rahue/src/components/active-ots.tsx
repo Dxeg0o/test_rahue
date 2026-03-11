@@ -6,6 +6,74 @@ import { es } from "date-fns/locale";
 import { useDemo, MachineState, ProductStage, DemoStageDetail, Stop } from "@/lib/demo-context";
 import { ProductionFlowStepper } from "./production-flow-stepper";
 
+// ── Llegada Materiales subtask view (read-only) ───────────────────────────
+
+const TINTAS_LM = ["Cyan", "Magenta", "Amarillo (Y)", "Negro (K)", "Barniz UV", "Blanco de Cobertura"];
+const PAPEL_LM = ["Bobina 1", "Bobina 2"];
+const CONFIRMADORES_LM = ["Ana Torres", "Luis Vega", "María González", "Carlos López", "Paula Ramos"];
+
+function LlegadaMaterialesSubtasks({ otId, orderStatus }: { otId: string; orderStatus: string }) {
+    const hash = otId.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    const tintasCount = orderStatus === "COMPLETED" ? TINTAS_LM.length : orderStatus === "RUNNING" ? (hash % 3) + 3 : 0;
+    const papelCount = orderStatus === "COMPLETED" ? PAPEL_LM.length : orderStatus === "RUNNING" ? (hash % 2) + 1 : 0;
+    const baseMs = Date.now() - 2 * 60 * 60 * 1000;
+
+    const buildRows = (items: string[], count: number, unit: string) =>
+        items.map((label, i) => {
+            const completed = i < count;
+            const confHash = label.split("").reduce((a, c) => a + c.charCodeAt(0), hash);
+            const qty = unit === "kg" ? (confHash % 8) + 2 : (confHash % 400) + 300;
+            const quantity = `${qty} ${unit}`;
+            if (!completed) return { label, completed: false as const, quantity };
+            const completedBy = CONFIRMADORES_LM[confHash % CONFIRMADORES_LM.length];
+            const completedAt = new Date(baseMs + i * 15 * 60 * 1000)
+                .toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+            return { label, completed: true as const, completedBy, completedAt, quantity };
+        });
+
+    const tintas = buildRows(TINTAS_LM, tintasCount, "kg");
+    const papel = buildRows(PAPEL_LM, papelCount, "m");
+
+    const renderGroup = (title: string, rows: ReturnType<typeof buildRows>) => (
+        <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                {title} ({rows.filter(r => r.completed).length}/{rows.length})
+            </p>
+            <div className="divide-y divide-slate-50 rounded-xl border border-slate-100 overflow-hidden bg-white">
+                {rows.map((r) => (
+                    <div key={r.label} className="flex items-start gap-2.5 px-3 py-2">
+                        <div className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 border flex items-center justify-center ${r.completed ? "bg-emerald-500 border-emerald-500" : "border-slate-200 bg-white"}`}>
+                            {r.completed && (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} className="w-2.5 h-2.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                                <span className={`text-xs font-medium ${r.completed ? "text-slate-600" : "text-slate-400 italic"}`}>{r.label}</span>
+                                <span className={`text-xs flex-shrink-0 font-semibold ${r.completed ? "text-slate-500" : "text-slate-300"}`}>{r.quantity}</span>
+                            </div>
+                            {r.completed && "completedBy" in r ? (
+                                <p className="text-[10px] text-slate-400 mt-0.5">{r.completedBy} · {r.completedAt}</p>
+                            ) : !r.completed ? (
+                                <p className="text-[10px] text-slate-300 mt-0.5">Pendiente</p>
+                            ) : null}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="space-y-4">
+            {renderGroup("Tintas", tintas)}
+            {renderGroup("Papel", papel)}
+        </div>
+    );
+}
+
 interface ActiveOtsProps {
   initialSelectedId?: string | null;
   onInitialConsumed?: () => void;
@@ -39,6 +107,7 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
   });
 
   const selectedMachine = activeMachines.find(m => m.id === selectedMachineId);
+  const MACHINE_STAGES = ["Impresión", "Troquelado", "Formado"];
 
   const getProgress = (current: number, target?: number) => {
       if (!target || target === 0) return 0;
@@ -170,27 +239,50 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
             {/* Scrollable Body */}
             <div className="p-8 flex-1 overflow-y-auto">
                 {/* KPIs Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Avance</p>
-                        <p className="text-2xl font-bold text-slate-900">{getProgress(selectedMachine.metrics.totalUnits, selectedMachine.order.targetUnits)}%</p>
-                        <p className="text-xs text-slate-400 mt-1">{selectedMachine.metrics.totalUnits.toLocaleString()} / {selectedMachine.order.targetUnits?.toLocaleString()}</p>
+                {MACHINE_STAGES.includes(selectedMachine.area as string) ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Avance</p>
+                            <p className="text-2xl font-bold text-slate-900">{getProgress(selectedMachine.metrics.totalUnits, selectedMachine.order.targetUnits)}%</p>
+                            <p className="text-xs text-slate-400 mt-1">{selectedMachine.metrics.totalUnits.toLocaleString()} / {selectedMachine.order.targetUnits?.toLocaleString()}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Velocidad Actual</p>
+                            <p className="text-2xl font-bold text-indigo-600">
+                                {selectedMachine.status === "RUNNING" ? selectedMachine.metrics.currentSpeed : 0} <span className="text-sm text-slate-400 font-normal">{selectedMachine.metrics.speedUnit.toUpperCase()}</span>
+                            </p>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Desviación Estándar</p>
+                            <p className={`text-2xl font-bold ${
+                                (selectedMachine.metrics.standardDeviation || 0) > 3 ? "text-red-500" : "text-emerald-600"
+                            }`}>
+                                {selectedMachine.metrics.standardDeviation?.toFixed(2)}
+                            </p>
+                        </div>
                     </div>
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Velocidad Actual</p>
-                        <p className="text-2xl font-bold text-indigo-600">
-                            {selectedMachine.status === "RUNNING" ? selectedMachine.metrics.currentSpeed : 0} <span className="text-sm text-slate-400 font-normal">{selectedMachine.metrics.speedUnit.toUpperCase()}</span>
-                        </p>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Desviación Estándar</p>
-                        <p className={`text-2xl font-bold ${
-                            (selectedMachine.metrics.standardDeviation || 0) > 3 ? "text-red-500" : "text-emerald-600"
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Etapa</p>
+                            <p className="text-2xl font-bold text-slate-900">{selectedMachine.area}</p>
+                            <p className="text-xs text-slate-400 mt-1">Paso de proceso logístico</p>
+                        </div>
+                        <div className={`p-4 rounded-2xl border ${
+                            selectedMachine.status === "RUNNING"
+                                ? "bg-indigo-50 border-indigo-100"
+                                : "bg-amber-50 border-amber-100"
                         }`}>
-                            {selectedMachine.metrics.standardDeviation?.toFixed(2)}
-                        </p>
+                            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Estado</p>
+                            <p className={`text-2xl font-bold ${selectedMachine.status === "RUNNING" ? "text-indigo-600" : "text-amber-600"}`}>
+                                {selectedMachine.status === "RUNNING" ? "En Curso" : "En Espera"}
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1">
+                                {selectedMachine.order.operatorName}
+                            </p>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Production Flow Stepper */}
                 <div className="mb-8 p-6 bg-slate-50 border border-slate-100 rounded-3xl">
@@ -262,7 +354,9 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
                                 
                                 <div className="flex items-center gap-4 pl-4 shrink-0">
                                     <div className="hidden md:flex flex-col items-end">
-                                        {selectedMachine.metrics.totalUnits > 0 && <span className="text-sm font-bold text-indigo-600">{selectedMachine.metrics.totalUnits.toLocaleString()} und</span>}
+                                        {MACHINE_STAGES.includes(selectedMachine.area as string) && selectedMachine.metrics.totalUnits > 0 && (
+                                            <span className="text-sm font-bold text-indigo-600">{selectedMachine.metrics.totalUnits.toLocaleString()} und</span>
+                                        )}
                                         <span className="text-xs text-slate-400">{((new Date().getTime() - new Date(selectedMachine.order.startTime).getTime()) / 3600000).toFixed(1)} h</span>
                                     </div>
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isCurrentExpanded ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
@@ -275,53 +369,65 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
                             
                             {isCurrentExpanded && (
                                 <div className="border-t border-indigo-100 bg-white p-5 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Velocidad Actual</p>
-                                            <p className="text-lg font-bold text-slate-900">{selectedMachine.metrics.currentSpeed} <span className="text-xs font-normal text-slate-400">{selectedMachine.metrics.speedUnit}</span></p>
-                                        </div>
-                                        {selectedMachine.area === "Troquelado" && (
+                                    {MACHINE_STAGES.includes(selectedMachine.area as string) ? (
+                                        <>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Salidas / Golpe</p>
-                                                <p className="text-lg font-bold text-slate-900">{selectedMachine.order.outputs}</p>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Velocidad Actual</p>
+                                                <p className="text-lg font-bold text-slate-900">{selectedMachine.metrics.currentSpeed} <span className="text-xs font-normal text-slate-400">{selectedMachine.metrics.speedUnit}</span></p>
+                                            </div>
+                                            {selectedMachine.area === "Troquelado" && (
+                                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Salidas / Golpe</p>
+                                                    <p className="text-lg font-bold text-slate-900">{selectedMachine.order.outputs}</p>
+                                                </div>
+                                            )}
+                                            {selectedMachine.area === "Troquelado" && (
+                                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Golpes Máquina</p>
+                                                    <p className="text-lg font-bold text-slate-900">{selectedMachine.metrics.totalHits.toLocaleString()}</p>
+                                                </div>
+                                            )}
+                                            <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 shadow-sm">
+                                                <p className="text-[10px] text-indigo-500 uppercase tracking-wider mb-1">Total Producido</p>
+                                                <p className="text-lg font-bold text-indigo-600">{selectedMachine.metrics.totalUnits.toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                        {selectedMachine.stops && selectedMachine.stops.length > 0 ? (
+                                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                                <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                                                    <h5 className="font-bold text-slate-700 text-sm">Registro de Paradas (Turno Actual)</h5>
+                                                    <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 font-bold rounded-md">{selectedMachine.stops.length} paradas</span>
+                                                </div>
+                                                <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                                                    {selectedMachine.stops.slice().reverse().map((stop, sIdx) => (
+                                                        <div key={sIdx} className="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
+                                                                <span className="font-medium text-slate-700 text-sm">{stop.reason}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-6 text-sm text-slate-500">
+                                                                <span>{stop.startTime} - {stop.endTime}</span>
+                                                                <span className="font-medium text-slate-700 w-16 text-right">{stop.duration}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 text-center text-xs text-slate-400 italic bg-slate-50 rounded-xl border border-slate-100">
+                                                No se han registrado paradas en el turno actual.
                                             </div>
                                         )}
-                                        {selectedMachine.area === "Troquelado" && (
-                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Golpes Máquina</p>
-                                                <p className="text-lg font-bold text-slate-900">{selectedMachine.metrics.totalHits.toLocaleString()}</p>
-                                            </div>
-                                        )}
-                                        <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 shadow-sm">
-                                            <p className="text-[10px] text-indigo-500 uppercase tracking-wider mb-1">Total Producido</p>
-                                            <p className="text-lg font-bold text-indigo-600">{selectedMachine.metrics.totalUnits.toLocaleString()}</p>
-                                        </div>
-                                    </div>
-
-                                    {selectedMachine.stops && selectedMachine.stops.length > 0 ? (
-                                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                                            <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
-                                                <h5 className="font-bold text-slate-700 text-sm">Registro de Paradas (Turno Actual)</h5>
-                                                <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 font-bold rounded-md">{selectedMachine.stops.length} paradas</span>
-                                            </div>
-                                            <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                                                {selectedMachine.stops.slice().reverse().map((stop, sIdx) => (
-                                                    <div key={sIdx} className="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
-                                                            <span className="font-medium text-slate-700 text-sm">{stop.reason}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-6 text-sm text-slate-500">
-                                                            <span>{stop.startTime} - {stop.endTime}</span>
-                                                            <span className="font-medium text-slate-700 w-16 text-right">{stop.duration}</span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        </>
+                                    ) : selectedMachine.area === "Llegada Materiales" ? (
+                                        <LlegadaMaterialesSubtasks
+                                            otId={selectedMachine.order.id}
+                                            orderStatus={selectedMachine.order.status}
+                                        />
                                     ) : (
-                                        <div className="p-4 text-center text-xs text-slate-400 italic bg-slate-50 rounded-xl border border-slate-100">
-                                            No se han registrado paradas en el turno actual.
+                                        <div className="p-4 text-center text-sm text-slate-400 italic bg-slate-50 rounded-xl border border-slate-100">
+                                            Etapa logística — sin métricas de producción.
                                         </div>
                                     )}
                                 </div>

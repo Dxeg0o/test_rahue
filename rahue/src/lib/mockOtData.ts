@@ -171,13 +171,13 @@ export function generateMockOTs(count: number = 300): OTDocument[] {
 
     if (rand < 0.33) {
       flowName = "Cono";
-      flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
+      flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Tránsito a Bodega", "Entrega Cliente"];
     } else if (rand < 0.66) {
       flowName = "Tapas";
-      flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
+      flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Tránsito a Bodega", "Entrega Cliente"];
     } else {
       flowName = "Tapas Troqueladas";
-      flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
+      flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Tránsito a Bodega", "Entrega Cliente"];
     }
 
     const client = pickRandom(CLIENTS);
@@ -200,7 +200,7 @@ export function generateMockOTs(count: number = 300): OTDocument[] {
 
     flowStages.forEach((stage, idx) => {
       // Non-production stages
-      if (["Llegada Materiales", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"].includes(stage)) {
+      if (["Llegada Materiales", "Tránsito a Bodega", "Entrega Cliente"].includes(stage)) {
           // They don't generate units or have machines/workers in the same way, but they need timestamps
           return;
       }
@@ -257,22 +257,15 @@ export function generateMockOTs(count: number = 300): OTDocument[] {
     // Populate Logistic Timestamps
     if (overallStart && overallEnd) {
         stageTimestamps["Llegada Materiales"] = getLogisticTimestamps(overallStart, 120, 240);
-        
+
         const finalEnd = overallEnd as Date;
-        const envioStart = new Date(finalEnd.getTime() + 15 * 60000); // 15 mins after last production stage
-        stageTimestamps["Envío a Bodega"] = { start: envioStart, end: new Date(envioStart.getTime() + 30 * 60000) };
-        
-        // Typecast to bypass TS incorrectly inferring never for the end property
-        const envioData = stageTimestamps["Envío a Bodega"] as StageTimestamps;
-        const envioEnd = envioData.end || new Date(envioStart.getTime() + 30 * 60000);
-        
-        const llegadaStart = new Date(envioEnd);
-        stageTimestamps["Llegada a Bodega"] = { start: llegadaStart, end: new Date(llegadaStart.getTime() + 15 * 60000) };
-        
-        const llegadaData = stageTimestamps["Llegada a Bodega"] as StageTimestamps;
-        const llegadaEnd = llegadaData.end || new Date(llegadaStart.getTime() + 15 * 60000);
-        
-        const entregaStart = new Date(llegadaEnd.getTime() + Math.random() * 24 * 60 * 60000); // Between 0 and 24 hours later
+        const transitoStart = new Date(finalEnd.getTime() + 15 * 60000); // 15 mins after last production stage
+        stageTimestamps["Tránsito a Bodega"] = { start: transitoStart, end: new Date(transitoStart.getTime() + 45 * 60000) };
+
+        const transitoData = stageTimestamps["Tránsito a Bodega"] as StageTimestamps;
+        const transitoEnd = transitoData.end || new Date(transitoStart.getTime() + 45 * 60000);
+
+        const entregaStart = new Date(transitoEnd.getTime() + Math.random() * 24 * 60 * 60000); // Between 0 and 24 hours later
         stageTimestamps["Entrega Cliente"] = { start: entregaStart, end: new Date(entregaStart.getTime() + 120 * 60000) };
     }
 

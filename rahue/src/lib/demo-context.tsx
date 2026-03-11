@@ -15,7 +15,11 @@ export interface Stop {
     reason: string;
 }
 
-export type ProductStage = "Llegada Materiales" | "Preparación" | "Impresión" | "Troquelado" | "Formado" | "Envío a Bodega" | "Llegada a Bodega" | "Despacho" | "Entrega Cliente";
+export type ProductStage = "Llegada Materiales" | "Impresión" | "Troquelado" | "Formado" | "Tránsito a Bodega" | "Entrega Cliente";
+
+export const STANDARD_FLOW: ProductStage[] = [
+    "Llegada Materiales", "Impresión", "Troquelado", "Formado", "Tránsito a Bodega", "Entrega Cliente"
+];
 
 export interface ProductFlow {
     name: string;
@@ -87,7 +91,7 @@ export type DemoStep = "INTRO" | "OPERATOR_START" | "DASHBOARD_VIEW" | "OPERATOR
 export interface MachineState {
   id: string; // "machine-1", "machine-2"
   name: string;
-  area: "Impresión" | "Troquelado" | "Formado" | "Llegada Materiales" | "Preparación" | "Envío a Bodega" | "Llegada a Bodega" | "Despacho" | "Entrega Cliente";
+  area: ProductStage;
   order: ActiveOrder | null;
   metrics: DemoMetrics;
   history: HistoryPoint[];
@@ -184,53 +188,53 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
     // 3 -> Impresión
     // 8 -> Troquelado
     // 4 -> Formado
-    const areaMap = [
+    const areaMap: ProductStage[] = [
         "Impresión", "Impresión", "Impresión",
         "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado",
         "Formado", "Formado", "Formado", "Formado",
         "Llegada Materiales", "Llegada Materiales",
-        "Preparación", "Preparación",
-        "Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"
-    ] as const;
+        "Tránsito a Bodega", "Tránsito a Bodega", "Entrega Cliente", "Entrega Cliente"
+    ];
+
+    // Helper: builds stage timestamps for all completed stages up to current area
+    function buildStageTimestamps(currentArea: ProductStage, baseTime: number): Record<string, StageTimestamps> {
+        const timestamps: Record<string, StageTimestamps> = {};
+        const currentIdx = STANDARD_FLOW.indexOf(currentArea);
+        if (currentIdx === -1) return {};
+        const STAGE_DURATION_H = 2;
+        const GAP_H = 0.5;
+        for (let j = 0; j < currentIdx; j++) {
+            const stagesFromCurrent = currentIdx - j;
+            const start = new Date(baseTime - (1 + stagesFromCurrent * (STAGE_DURATION_H + GAP_H)) * 3600000);
+            const end = new Date(start.getTime() + STAGE_DURATION_H * 3600000);
+            timestamps[STANDARD_FLOW[j]] = { start, end };
+        }
+        timestamps[currentArea] = { start: new Date(baseTime - 3600000) };
+        return timestamps;
+    }
 
     for (let i = 0; i < areaMap.length; i++) {
         // Deterministic status for initial render
-        const isRunning = true; 
+        const isRunning = true;
         const initialHits = 1500 + (i * 500);
-        
+
         const area = areaMap[i];
         let speedUnit = "gpm";
         if (area === "Impresión") speedUnit = "m/min";
         if (area === "Formado") speedUnit = "u/min";
-        const isLogistics = ["Llegada Materiales", "Preparación", "Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"].includes(area);
+        const isLogistics = ["Llegada Materiales", "Tránsito a Bodega", "Entrega Cliente"].includes(area);
         if (isLogistics) speedUnit = "N/A";
 
-        let flowName = "";
-        let flowStages: ProductStage[] = [];
-        let stageTimestamps: Record<string, StageTimestamps> = {};
+        const flowName = "Cono";
+        const flowStages: ProductStage[] = [...STANDARD_FLOW];
         let stagesDetail: DemoStageDetail[] = [];
 
         const baseTime = randomize ? Date.now() : 1700000000000; // Fixed date for SSR
+        const stageTimestamps = buildStageTimestamps(area, baseTime);
 
-        if (area === "Impresión") {
-            const rand = randomize ? Math.random() : (i % 2 === 0 ? 0.2 : 0.8);
-            flowName = rand < 0.5 ? "Cono" : "Tapas Troqueladas";
-            flowStages = rand < 0.5 ? ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"] : ["Llegada Materiales", "Impresión", "Troquelado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
-            stageTimestamps = {
-                "Llegada Materiales": { start: new Date(baseTime - 5 * 3600000), end: new Date(baseTime - 4 * 3600000) },
-                "Impresión": { start: new Date(baseTime - 3600000) }
-            };
-        } else if (area === "Troquelado") {
-            const rand = randomize ? Math.random() : (i % 2 === 0 ? 0.2 : 0.8);
-            flowName = rand < 0.5 ? "Cono" : "Tapas Troqueladas";
-            flowStages = rand < 0.5 ? ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"] : ["Llegada Materiales", "Impresión", "Troquelado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
-            const printStart = new Date(baseTime - 4 * 3600000);
-            const printEnd = new Date(baseTime - 2 * 3600000);
-            stageTimestamps = {
-                "Llegada Materiales": { start: new Date(baseTime - 6 * 3600000), end: new Date(baseTime - 5 * 3600000) },
-                "Impresión": { start: printStart, end: printEnd },
-                "Troquelado": { start: new Date(baseTime - 3600000) }
-            };
+        if (area === "Troquelado") {
+            const printStart = stageTimestamps["Impresión"]?.start ?? new Date(baseTime - 4 * 3600000);
+            const printEnd = stageTimestamps["Impresión"]?.end ?? new Date(baseTime - 2 * 3600000);
             stagesDetail = [
                 {
                     stageName: "Impresión",
@@ -248,18 +252,10 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
                 }
             ];
         } else if (area === "Formado") {
-            flowName = "Cono";
-            flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
-            const printStart = new Date(baseTime - 7 * 3600000);
-            const printEnd = new Date(baseTime - 5 * 3600000);
-            const troqStart = new Date(baseTime - 4 * 3600000);
-            const troqEnd = new Date(baseTime - 2 * 3600000);
-            stageTimestamps = {
-                "Llegada Materiales": { start: new Date(baseTime - 9 * 3600000), end: new Date(baseTime - 8 * 3600000) },
-                "Impresión": { start: printStart, end: printEnd },
-                "Troquelado": { start: troqStart, end: troqEnd },
-                "Formado": { start: new Date(baseTime - 3600000) }
-            };
+            const printStart = stageTimestamps["Impresión"]?.start ?? new Date(baseTime - 7 * 3600000);
+            const printEnd = stageTimestamps["Impresión"]?.end ?? new Date(baseTime - 5 * 3600000);
+            const troqStart = stageTimestamps["Troquelado"]?.start ?? new Date(baseTime - 4 * 3600000);
+            const troqEnd = stageTimestamps["Troquelado"]?.end ?? new Date(baseTime - 2 * 3600000);
             stagesDetail = [
                 {
                     stageName: "Impresión",
@@ -290,13 +286,6 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
                     stops: []
                 }
             ];
-        } else {
-            // Estaciones logísticas o procesos manuales
-            flowName = randomize ? (Math.random() < 0.5 ? "Cono" : "Tapas") : "Cono";
-            flowStages = ["Llegada Materiales", "Preparación", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"];
-            stageTimestamps = {
-                [area]: { start: new Date(baseTime - 3600000) }
-            };
         }
 
         const operatorInfo = operators[i % operators.length];
@@ -306,7 +295,7 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
             name: `${areaMap[i]} ${isLogistics ? i - 14 : i + 1}`,
             area: areaMap[i],
             status: isRunning ? "RUNNING" : "IDLE",
-             order: isRunning ? {
+            order: isRunning ? {
                 id: isLogistics ? `OT-300${i}` : `OT-202${i}`,
                 createdAt: new Date(baseTime - 12 * 3600000).toISOString(),
                 client: ["Coca-Cola", "Nestlé", "Unilever", "CCU", "Carozzi"][i % 5],
@@ -317,7 +306,7 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
                 stagesDetail: stagesDetail,
                 operatorName: operatorInfo.name,
                 operatorRut: operatorInfo.rut,
-                outputs: 2, // Default outputs
+                outputs: 2,
                 targetUnits: 50000 + (i * 1000),
                 startTime: new Date(baseTime - 3600000),
                 status: isLogistics && randomize ? (Math.random() > 0.5 ? "RUNNING" : "PAUSED") : "RUNNING"
@@ -366,8 +355,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
                          history: [...m.history.slice(-29), { time: now, speed: 0, target: 350 }]
                      }
                  }
-                return m; 
-            };
+                return m;
+            }
+
+            // Logistics stages don't run production simulation
+            const LOGISTICS_STAGES: ProductStage[] = ["Llegada Materiales", "Tránsito a Bodega", "Entrega Cliente"];
+            if (LOGISTICS_STAGES.includes(m.area)) return m;
 
             // Simulate tick
             // Target speed range: 330 - 365 GPM
@@ -429,20 +422,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setMachines(prev => prev.map(m => {
         if (m.id !== machineId) return m;
 
-        const rand = Math.random();
-        let flowName = "";
-        let flowStages: ProductStage[] = [];
-
-        if (rand < 0.33) {
-            flowName = "Cono";
-            flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
-        } else if (rand < 0.66) {
-            flowName = "Tapas";
-            flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
-        } else {
-            flowName = "Tapas Troqueladas";
-            flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
-        }
+        const flowName = "Cono";
+        const flowStages: ProductStage[] = [...STANDARD_FLOW];
 
         const now = new Date();
         const stageTimestamps: Record<string, StageTimestamps> = {

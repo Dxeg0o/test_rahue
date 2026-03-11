@@ -24,8 +24,8 @@ export function ProductionFlowStepper({
     if (!flow || flow.length === 0) return null;
 
     return (
-        <div className="w-full relative px-2 sm:px-6">
-            <div className="flex w-full relative z-10">
+        <div className="w-full overflow-x-auto">
+            <div className="flex relative z-10 min-w-[540px] px-2 sm:px-4">
                 {flow.map((stage, index, flowArr) => {
                     // Si el currentStageName es "COMPLETADO", consideramos que todos los pasos ya pasaron.
                     const currentStageIndex = currentStageName === "COMPLETADO" ? flowArr.length : flowArr.indexOf(currentStageName as ProductStage);
@@ -35,8 +35,8 @@ export function ProductionFlowStepper({
                     const isLast = index === flowArr.length - 1;
                     const timestamps = stageTimestamps?.[stage];
 
-                    let circleClasses = "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm sm:text-base transition-all relative box-border ";
-                    let textClasses = "mt-4 text-sm font-bold text-center ";
+                    let circleClasses = "w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm transition-all relative box-border ";
+                    let textClasses = "mt-3 text-[11px] font-bold text-center max-w-[70px] leading-tight ";
 
                     if (isCompleted || status === "COMPLETED") {
                         circleClasses += "bg-emerald-500 text-white shadow-sm shadow-emerald-200";
@@ -57,25 +57,25 @@ export function ProductionFlowStepper({
                         <div key={stage} className="relative flex flex-col items-center flex-1">
                             {/* Forward connecting line */}
                             {!isLast && (
-                                <div className="absolute top-5 sm:top-6 left-1/2 w-full h-[3px] bg-slate-200 -z-10" />
+                                <div className="absolute top-4 sm:top-5 left-1/2 w-full h-[2px] bg-slate-200 -z-10" />
                             )}
                             {!isLast && (isCompleted || status === "COMPLETED") && (
-                                <div className="absolute top-5 sm:top-6 left-1/2 w-full h-[3px] bg-emerald-400 -z-10" />
+                                <div className="absolute top-4 sm:top-5 left-1/2 w-full h-[2px] bg-emerald-400 -z-10" />
                             )}
 
                             <div className={circleClasses}>
                                 {isCompleted || status === "COMPLETED" ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-4 h-4 sm:w-5 sm:h-5 relative z-10 text-white">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                     </svg>
                                 ) : isCurrent ? (
-                                    <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full relative z-10 ${status === "RUNNING" ? 'bg-indigo-600' : 'bg-yellow-500'}`} />
+                                    <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full relative z-10 ${status === "RUNNING" ? 'bg-indigo-600' : 'bg-yellow-500'}`} />
                                 ) : (
                                     <span className="relative z-10">{index + 1}</span>
                                 )}
                             </div>
 
-                            <div className="flex flex-col items-center h-28 pt-1">
+                            <div className="flex flex-col items-center h-24 pt-1">
                                 <span className={textClasses}>
                                     {stage}
                                     {stageDetail?.machineName && (
@@ -105,7 +105,9 @@ export function ProductionFlowStepper({
                                             )}
                                         </>
                                     ) : (
-                                        <span className="text-slate-300 italic mt-1">Pendiente</span>
+                                        <span className="text-slate-300 italic mt-1 text-[10px]">
+                                            {isCompleted ? "Completado" : "Pendiente"}
+                                        </span>
                                     )}
                                 </div>
                             </div>

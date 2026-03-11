@@ -34,8 +34,9 @@ function HomePageContent() {
   const searchParams = useSearchParams();
   const isEmbed = searchParams.get("embed") === "true";
 
-  const PROCESOS_AREAS = ["Llegada Materiales", "Preparación"];
-  const MOVIMIENTOS_AREAS = ["Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"];
+  const MACHINE_AREAS = ["Impresión", "Troquelado", "Formado"];
+  const PROCESOS_AREAS = ["Llegada Materiales"];
+  const MOVIMIENTOS_AREAS = ["Tránsito a Bodega", "Entrega Cliente"];
 
   const activeProcesos = machines.filter(m => PROCESOS_AREAS.includes(m.area as string) && m.order !== null).map(m => ({
       id: m.order!.id,
@@ -215,13 +216,13 @@ function HomePageContent() {
                                     <div className="flex items-center gap-2">
                                         <h2 className="font-bold text-slate-800">Máquinas</h2>
                                         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-600">
-                                            {machines.filter(m => m.status === "RUNNING" || m.order?.status === "PAUSED").length}
+                                            {machines.filter(m => MACHINE_AREAS.includes(m.area as string) && (m.status === "RUNNING" || m.order?.status === "PAUSED")).length}
                                         </span>
                                     </div>
                                     <button onClick={() => setExpandedColumn("maquinas")} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Expandir ↗</button>
                                 </div>
                                 <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                                    {machines.filter(m => m.status === "RUNNING" || m.order?.status === "PAUSED").map(m => (
+                                    {machines.filter(m => MACHINE_AREAS.includes(m.area as string) && (m.status === "RUNNING" || m.order?.status === "PAUSED")).map(m => (
                                         <MachineCardCompact key={m.id} machine={m} onClick={() => setSelectedMachineId(m.id)} onOtClick={() => handleOtClick(m.id)} />
                                     ))}
                                 </div>
@@ -358,7 +359,7 @@ function HomePageContent() {
 
                             {expandedColumn === "movimientos" && (
                                 <div className="space-y-6">
-                                    {["Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"].map(stageName => {
+                                    {["Tránsito a Bodega", "Entrega Cliente"].map(stageName => {
                                         const groupItems = activeMovimientos.filter(item => item.stageName === stageName);
                                         if (groupItems.length === 0) return null;
                                         const actsCount = groupItems.filter(i => i.status === "IN_PROGRESS").length;

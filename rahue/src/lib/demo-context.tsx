@@ -15,7 +15,7 @@ export interface Stop {
     reason: string;
 }
 
-export type ProductStage = "Llegada Materiales" | "Impresión" | "Troquelado" | "Formado" | "Envío a Bodega" | "Llegada a Bodega" | "Entrega Cliente";
+export type ProductStage = "Llegada Materiales" | "Preparación" | "Impresión" | "Troquelado" | "Formado" | "Envío a Bodega" | "Llegada a Bodega" | "Despacho" | "Entrega Cliente";
 
 export interface ProductFlow {
     name: string;
@@ -87,7 +87,7 @@ export type DemoStep = "INTRO" | "OPERATOR_START" | "DASHBOARD_VIEW" | "OPERATOR
 export interface MachineState {
   id: string; // "machine-1", "machine-2"
   name: string;
-  area: "Impresión" | "Troquelado" | "Formado";
+  area: "Impresión" | "Troquelado" | "Formado" | "Llegada Materiales" | "Preparación" | "Envío a Bodega" | "Llegada a Bodega" | "Despacho" | "Entrega Cliente";
   order: ActiveOrder | null;
   metrics: DemoMetrics;
   history: HistoryPoint[];
@@ -187,11 +187,13 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
     const areaMap = [
         "Impresión", "Impresión", "Impresión",
         "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado",
-        "Formado", "Formado", "Formado", "Formado"
+        "Formado", "Formado", "Formado", "Formado",
+        "Llegada Materiales", "Llegada Materiales",
+        "Preparación", "Preparación",
+        "Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"
     ] as const;
 
-    // Create 15 machines
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < areaMap.length; i++) {
         // Deterministic status for initial render
         const isRunning = true; 
         const initialHits = 1500 + (i * 500);
@@ -200,6 +202,8 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
         let speedUnit = "gpm";
         if (area === "Impresión") speedUnit = "m/min";
         if (area === "Formado") speedUnit = "u/min";
+        const isLogistics = ["Llegada Materiales", "Preparación", "Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"].includes(area);
+        if (isLogistics) speedUnit = "N/A";
 
         let flowName = "";
         let flowStages: ProductStage[] = [];
@@ -243,7 +247,7 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
                     stops: []
                 }
             ];
-        } else {
+        } else if (area === "Formado") {
             flowName = "Cono";
             flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
             const printStart = new Date(baseTime - 7 * 3600000);
@@ -286,17 +290,24 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
                     stops: []
                 }
             ];
+        } else {
+            // Estaciones logísticas o procesos manuales
+            flowName = randomize ? (Math.random() < 0.5 ? "Cono" : "Tapas") : "Cono";
+            flowStages = ["Llegada Materiales", "Preparación", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"];
+            stageTimestamps = {
+                [area]: { start: new Date(baseTime - 3600000) }
+            };
         }
 
         const operatorInfo = operators[i % operators.length];
 
         machines.push({
-            id: `machine-${i + 1}`,
-            name: `${areaMap[i]} ${i + 1}`,
+            id: isLogistics ? `logistica-${i + 1}` : `machine-${i + 1}`,
+            name: `${areaMap[i]} ${isLogistics ? i - 14 : i + 1}`,
             area: areaMap[i],
             status: isRunning ? "RUNNING" : "IDLE",
              order: isRunning ? {
-                id: `OT-202${i}`,
+                id: isLogistics ? `OT-300${i}` : `OT-202${i}`,
                 createdAt: new Date(baseTime - 12 * 3600000).toISOString(),
                 client: ["Coca-Cola", "Nestlé", "Unilever", "CCU", "Carozzi"][i % 5],
                 sku: `SKU-${flowName.substring(0, 3)}-${i}X`,
@@ -309,22 +320,22 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
                 outputs: 2, // Default outputs
                 targetUnits: 50000 + (i * 1000),
                 startTime: new Date(baseTime - 3600000),
-                status: "RUNNING"
+                status: isLogistics && randomize ? (Math.random() > 0.5 ? "RUNNING" : "PAUSED") : "RUNNING"
             } : null,
             metrics: { 
-                totalHits: initialHits, 
-                totalUnits: initialHits * 2, // 2 outputs
-                hitsPerMinute: 350, 
-                currentSpeed: isRunning ? 330 + (i * 5) : 0,
-                minSpeed: isRunning ? 300 + (i * 2) : 0,
-                maxSpeed: isRunning ? 380 + (i * 2) : 0,
-                standardDeviation: isRunning ? parseFloat(((randomize ? Math.random() : 0.5) * 5 + 1).toFixed(2)) : 0, 
+                totalHits: isLogistics ? 0 : initialHits, 
+                totalUnits: isLogistics ? 0 : initialHits * 2, // 2 outputs
+                hitsPerMinute: isLogistics ? 0 : 350, 
+                currentSpeed: isLogistics ? 0 : (isRunning ? 330 + (i * 5) : 0),
+                minSpeed: isLogistics ? 0 : (isRunning ? 300 + (i * 2) : 0),
+                maxSpeed: isLogistics ? 0 : (isRunning ? 380 + (i * 2) : 0),
+                standardDeviation: isLogistics ? 0 : (isRunning ? parseFloat(((randomize ? Math.random() : 0.5) * 5 + 1).toFixed(2)) : 0), 
                 outputsPerStroke: 2,
                 speedUnit: speedUnit
             },
             history: [],
-            stops: isRunning ? generateStops(randomize ? Math.floor(Math.random() * 3) + 2 : 2, randomize) : [], 
-            internalHits: initialHits
+            stops: isRunning && !isLogistics ? generateStops(randomize ? Math.floor(Math.random() * 3) + 2 : 2, randomize) : [], 
+            internalHits: isLogistics ? 0 : initialHits
         });
     }
 

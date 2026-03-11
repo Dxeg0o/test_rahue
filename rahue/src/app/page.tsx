@@ -18,7 +18,9 @@ import { GeneralHistoryView } from "@/components/general-history-view";
 import { ActiveOts } from "@/components/active-ots";
 import { MachineCard } from "@/components/machine-card";
 import { MachineCardCompact } from "@/components/machine-card-compact";
+import { ProcessCard } from "@/components/process-card";
 
+// Mock data removed in favor of DemoContext
 export default function HomePage() {
   return (
     <Suspense>
@@ -32,11 +34,38 @@ function HomePageContent() {
   const searchParams = useSearchParams();
   const isEmbed = searchParams.get("embed") === "true";
 
+  const PROCESOS_AREAS = ["Llegada Materiales", "Preparación"];
+  const MOVIMIENTOS_AREAS = ["Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"];
+
+  const activeProcesos = machines.filter(m => PROCESOS_AREAS.includes(m.area as string) && m.order !== null).map(m => ({
+      id: m.order!.id,
+      machineId: m.id,
+      productName: m.order!.productName,
+      stageName: m.area,
+      operatorName: m.order!.operatorName,
+      status: (m.order!.status === "PAUSED" ? "WAITING" : "IN_PROGRESS") as "WAITING" | "IN_PROGRESS",
+      timeInStage: `${((new Date().getTime() - new Date(m.order!.startTime).getTime()) / 3600000).toFixed(1)} h`
+  }));
+
+  const activeMovimientos = machines.filter(m => MOVIMIENTOS_AREAS.includes(m.area as string) && m.order !== null).map(m => ({
+      id: m.order!.id,
+      machineId: m.id,
+      productName: m.order!.productName,
+      stageName: m.area,
+      operatorName: m.order!.operatorName,
+      status: (m.order!.status === "PAUSED" ? "WAITING" : "IN_PROGRESS") as "WAITING" | "IN_PROGRESS",
+      timeInStage: `${((new Date().getTime() - new Date(m.order!.startTime).getTime()) / 3600000).toFixed(1)} h`
+  }));
+
+
   // High-level Tabs: "View Mode"
   const [activeView, setActiveView] = useState<"live" | "history" | "workers">("live");
 
   // Live View Sub-tab
   const [liveViewMode, setLiveViewMode] = useState<"general" | "ots">("general");
+
+  // Expanded Column State
+  const [expandedColumn, setExpandedColumn] = useState<"procesos" | "maquinas" | "movimientos" | null>(null);
 
   // Drill-down State
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
@@ -161,67 +190,207 @@ function HomePageContent() {
 
             {liveViewMode === "general" ? (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {["Impresión", "Troquelado", "Formado"].map(area => {
-                        const areaMachines = machines.filter(m => m.area === area);
-                        if (areaMachines.length === 0) return null;
-                        const isExpanded = expandedAreas.has(area);
-                        const runningCount = areaMachines.filter(m => m.status === "RUNNING").length;
-                        const pausedCount = areaMachines.filter(m => m.order?.status === "PAUSED").length;
-
-                        return (
-                            <section key={area} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                                {/* Area header */}
-                                <div className="flex items-center justify-between px-5 py-4 bg-slate-50/80 border-b border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <h2 className="text-base font-bold text-slate-800">{area}</h2>
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <span className="flex items-center gap-1 text-green-600">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                                                {runningCount}
-                                            </span>
-                                            {pausedCount > 0 && (
-                                                <span className="flex items-center gap-1 text-yellow-600">
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                                                    {pausedCount}
-                                                </span>
-                                            )}
-                                            <span className="text-slate-400">{areaMachines.length} total</span>
-                                        </div>
+                    {expandedColumn === null ? (
+                        /* 3 COLUMN VIEW */
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                            {/* COLUMNA 1: PROCESOS */}
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col h-[700px]">
+                                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-2xl">
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="font-bold text-slate-800">Procesos</h2>
+                                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{activeProcesos.length}</span>
                                     </div>
-                                    <button
-                                        onClick={() => toggleArea(area)}
-                                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
-                                    >
-                                        {isExpanded ? "Compactar" : "Expandir"}
-                                        <svg
-                                            width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                                            className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
-                                        >
-                                            <polyline points="6 9 12 15 18 9" />
-                                        </svg>
-                                    </button>
+                                    <button onClick={() => setExpandedColumn("procesos")} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Expandir ↗</button>
                                 </div>
+                                <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                                    {activeProcesos.map(item => (
+                                        <ProcessCard key={item.id} item={item} onOtClick={() => handleOtClick(item.machineId)} />
+                                    ))}
+                                </div>
+                            </div>
 
-                                {/* Machine cards */}
-                                <div className="p-4">
-                                    {isExpanded ? (
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in duration-300">
-                                            {areaMachines.map((machine) => (
-                                                <MachineCard key={machine.id} machine={machine} onClick={() => setSelectedMachineId(machine.id)} onOtClick={() => handleOtClick(machine.id)} />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                            {areaMachines.map((machine) => (
-                                                <MachineCardCompact key={machine.id} machine={machine} onClick={() => setSelectedMachineId(machine.id)} onOtClick={() => handleOtClick(machine.id)} />
-                                            ))}
-                                        </div>
-                                    )}
+                            {/* COLUMNA 2: MÁQUINAS */}
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col h-[700px]">
+                                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-2xl">
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="font-bold text-slate-800">Máquinas</h2>
+                                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-600">
+                                            {machines.filter(m => m.status === "RUNNING" || m.order?.status === "PAUSED").length}
+                                        </span>
+                                    </div>
+                                    <button onClick={() => setExpandedColumn("maquinas")} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Expandir ↗</button>
                                 </div>
-                            </section>
-                        );
-                    })}
+                                <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                                    {machines.filter(m => m.status === "RUNNING" || m.order?.status === "PAUSED").map(m => (
+                                        <MachineCardCompact key={m.id} machine={m} onClick={() => setSelectedMachineId(m.id)} onOtClick={() => handleOtClick(m.id)} />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* COLUMNA 3: MOVIMIENTOS */}
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col h-[700px]">
+                                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-2xl">
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="font-bold text-slate-800">Movimientos</h2>
+                                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{activeMovimientos.length}</span>
+                                    </div>
+                                    <button onClick={() => setExpandedColumn("movimientos")} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Expandir ↗</button>
+                                </div>
+                                <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                                    {activeMovimientos.map(item => (
+                                        <ProcessCard key={item.id} item={item} onOtClick={() => handleOtClick(item.machineId)} />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        /* EXPANDED VIEWS */
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-4 border-b border-slate-200 pb-4">
+                                <button
+                                    onClick={() => setExpandedColumn(null)}
+                                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 font-medium text-sm transition-colors uppercase tracking-wider bg-white border border-slate-200 shadow-sm"
+                                >
+                                    &larr; Volver
+                                </button>
+                                <h2 className="font-bold text-slate-800 text-xl capitalize">Vista Detallada: {expandedColumn}</h2>
+                            </div>
+
+                            {expandedColumn === "maquinas" && (
+                                <div className="space-y-6">
+                                    {["Impresión", "Troquelado", "Formado"].map(area => {
+                                        const areaMachines = machines.filter(m => m.area === area);
+                                        if (areaMachines.length === 0) return null;
+                                        const isExpanded = expandedAreas.has(area);
+                                        const runningCount = areaMachines.filter(m => m.status === "RUNNING").length;
+                                        const pausedCount = areaMachines.filter(m => m.order?.status === "PAUSED").length;
+
+                                        return (
+                                            <section key={area} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                                {/* Area header */}
+                                                <div className="flex items-center justify-between px-5 py-4 bg-slate-50/80 border-b border-slate-100">
+                                                    <div className="flex items-center gap-3">
+                                                        <h2 className="text-base font-bold text-slate-800">{area}</h2>
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            <span className="flex items-center gap-1 text-green-600">
+                                                                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                                                {runningCount}
+                                                            </span>
+                                                            {pausedCount > 0 && (
+                                                                <span className="flex items-center gap-1 text-yellow-600">
+                                                                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                                                                    {pausedCount}
+                                                                </span>
+                                                            )}
+                                                            <span className="text-slate-400">{areaMachines.length} total</span>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => toggleArea(area)}
+                                                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                                    >
+                                                        {isExpanded ? "Compactar" : "Expandir"}
+                                                        <svg
+                                                            width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                                            className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
+                                                        >
+                                                            <polyline points="6 9 12 15 18 9" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+
+                                                {/* Machine cards */}
+                                                <div className="p-4">
+                                                    {isExpanded ? (
+                                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in duration-300">
+                                                            {areaMachines.map((machine) => (
+                                                                <MachineCard key={machine.id} machine={machine} onClick={() => setSelectedMachineId(machine.id)} onOtClick={() => handleOtClick(machine.id)} />
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                            {areaMachines.map((machine) => (
+                                                                <MachineCardCompact key={machine.id} machine={machine} onClick={() => setSelectedMachineId(machine.id)} onOtClick={() => handleOtClick(machine.id)} />
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </section>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {expandedColumn === "procesos" && (
+                                <div className="space-y-6">
+                                    {["Llegada Materiales", "Preparación"].map(stageName => {
+                                        const groupItems = activeProcesos.filter(item => item.stageName === stageName);
+                                        if (groupItems.length === 0) return null;
+                                        const actsCount = groupItems.filter(i => i.status === "IN_PROGRESS").length;
+
+                                        return (
+                                            <section key={stageName} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                                <div className="flex items-center justify-between px-5 py-4 bg-slate-50/80 border-b border-slate-100">
+                                                    <div className="flex items-center gap-3">
+                                                        <h2 className="text-base font-bold text-slate-800">{stageName}</h2>
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            <span className="flex items-center gap-1 text-indigo-600">
+                                                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                                                                {actsCount} activos
+                                                            </span>
+                                                            <span className="text-slate-400">{groupItems.length} total</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="p-4">
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                        {groupItems.map(item => (
+                                                            <ProcessCard key={item.id} item={item} onOtClick={() => handleOtClick(item.machineId)} />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </section>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {expandedColumn === "movimientos" && (
+                                <div className="space-y-6">
+                                    {["Envío a Bodega", "Llegada a Bodega", "Despacho", "Entrega Cliente"].map(stageName => {
+                                        const groupItems = activeMovimientos.filter(item => item.stageName === stageName);
+                                        if (groupItems.length === 0) return null;
+                                        const actsCount = groupItems.filter(i => i.status === "IN_PROGRESS").length;
+
+                                        return (
+                                            <section key={stageName} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                                <div className="flex items-center justify-between px-5 py-4 bg-slate-50/80 border-b border-slate-100">
+                                                    <div className="flex items-center gap-3">
+                                                        <h2 className="text-base font-bold text-slate-800">{stageName}</h2>
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            <span className="flex items-center gap-1 text-indigo-600">
+                                                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                                                                {actsCount} activos
+                                                            </span>
+                                                            <span className="text-slate-400">{groupItems.length} total</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="p-4">
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                                        {groupItems.map(item => (
+                                                            <ProcessCard key={item.id} item={item} onOtClick={() => handleOtClick(item.machineId)} />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </section>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             ) : (
                 <ActiveOts initialSelectedId={otInitialMachineId} onInitialConsumed={() => setOtInitialMachineId(null)} />

@@ -1,6 +1,7 @@
 "use client";
 
-import { MachineState } from "@/lib/demo-context";
+import { MachineState, ProductStage } from "@/lib/demo-context";
+import { ProductionFlowStepper } from "./production-flow-stepper";
 
 interface MachineCardProps {
     machine: MachineState;
@@ -81,12 +82,26 @@ export function MachineCard({ machine, onClick, onOtClick }: MachineCardProps) {
                                     style={{ width: `${progress}%` }}
                                 />
                             </div>
-                            <div className="flex justify-between items-baseline">
+                            <div className="flex justify-between items-baseline mb-4">
                                 <span className="text-lg font-black text-slate-900 tabular-nums">{progress}%</span>
                                 <span className="text-[11px] text-slate-400 font-medium tabular-nums">
                                     {machine.metrics.totalUnits.toLocaleString()} / {machine.order.targetUnits?.toLocaleString()}
                                 </span>
                             </div>
+
+                            {/* Flow Stepper Embedded */}
+                            {machine.order.flow && (
+                                <div className="mt-2 bg-slate-50/50 rounded-xl border border-slate-100 p-2 overflow-x-auto scrollbar-hide">
+                                    <div className="min-w-[400px]">
+                                        <ProductionFlowStepper
+                                            flow={machine.order.flow}
+                                            currentStageName={machine.area as ProductStage}
+                                            status={isPaused ? "PAUSED" : "RUNNING"}
+                                            stageTimestamps={machine.order.stageTimestamps}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

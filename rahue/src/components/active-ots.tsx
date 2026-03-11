@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useDemo, MachineState, ProductStage } from "@/lib/demo-context";
+import { useDemo, MachineState, ProductStage, DemoStageDetail, Stop } from "@/lib/demo-context";
 import { ProductionFlowStepper } from "./production-flow-stepper";
 
 interface ActiveOtsProps {
@@ -15,6 +15,8 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
   const { machines } = useDemo();
   const [search, setSearch] = useState("");
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(initialSelectedId ?? null);
+  const [expandedStage, setExpandedStage] = useState<number | null>(null);
+  const [isCurrentExpanded, setIsCurrentExpanded] = useState(false);
 
   useEffect(() => {
     if (initialSelectedId) {
@@ -123,21 +125,42 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
         <div className="w-2/3 animate-in slide-in-from-right-4 fade-in duration-300">
           <div className="h-full rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden flex flex-col">
             {/* Header */}
-            <div className={`p-6 text-white flex justify-between items-start shrink-0 ${selectedMachine.status === "RUNNING" ? "bg-slate-900" : "bg-yellow-600"}`}>
-                <div>
-                    <h2 className="text-2xl font-bold flex items-center gap-3">
-                        {selectedMachine.order.id}
-                        <span className={`text-xs px-2 py-0.5 rounded uppercase font-bold tracking-wider ${
-                            selectedMachine.status === "RUNNING" ? "bg-green-500 text-slate-900" : "bg-white/20 text-white"
+            <div className={`p-6 md:px-8 text-white flex justify-between items-start shrink-0 ${selectedMachine.status === "RUNNING" ? "bg-slate-900" : "bg-yellow-600"}`}>
+                <div className="w-full">
+                    <div className="flex items-center gap-3 mb-4">
+                        <h2 className="text-2xl font-bold">{selectedMachine.order.id}</h2>
+                        <span className={`text-xs px-2.5 py-1 rounded-md uppercase font-bold tracking-wider ${
+                            selectedMachine.status === "RUNNING" ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400" : "bg-white/20 text-white"
                         }`}>
                             {selectedMachine.status === "RUNNING" ? "En Producción" : "En Pausa"}
                         </span>
-                    </h2>
-                    <p className={`mt-1 font-medium ${selectedMachine.status === "RUNNING" ? "text-slate-400" : "text-yellow-100"}`}>
-                        {selectedMachine.name}
-                    </p>
+                        <span className="text-slate-400 ml-2">({selectedMachine.name})</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
+                        <div>
+                            <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Cliente</p>
+                            <p className="font-medium text-white">{selectedMachine.order.client || "No especificado"}</p>
+                        </div>
+                        <div>
+                            <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Producto / SKU</p>
+                            <p className="font-medium text-white">{selectedMachine.order.productName} <span className="text-white/70">({selectedMachine.order.sku || "N/A"})</span></p>
+                        </div>
+                        <div>
+                            <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Creada El</p>
+                            <p className="font-medium text-white">
+                                {selectedMachine.order.createdAt 
+                                    ? format(new Date(selectedMachine.order.createdAt), "dd MMM yyyy, HH:mm", { locale: es }) 
+                                    : "Desconocida"}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Objetivo</p>
+                            <p className="font-medium text-white">{selectedMachine.order.targetUnits?.toLocaleString() || 0} Unidades</p>
+                        </div>
+                    </div>
                 </div>
-                <button onClick={() => setSelectedMachineId(null)} className="p-1 hover:bg-white/10 rounded-full transition-colors">
+                <button onClick={() => setSelectedMachineId(null)} className="p-1 hover:bg-white/10 rounded-full transition-colors shrink-0 ml-4">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -199,46 +222,219 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
                     })()}
                 </div>
 
-                {/* Detailed Stats List */}
+                {/* Detailed Stats List & Past Stages Expandables */}
                 <div className="space-y-6">
+                    {/* Current Stage Summary (Replaces previous static detail view) */}
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900 mb-3 border-b pb-2">Detalles de la Orden</h3>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <p className="text-slate-500">Operador</p>
-                                <p className="font-medium text-slate-900">{selectedMachine.order.operatorName}</p>
-                                <p className="text-xs text-slate-400">{selectedMachine.order.operatorRut}</p>
-                            </div>
-                            <div>
-                                <p className="text-slate-500">Hora Inicio</p>
-                                <p className="font-medium">{format(new Date(selectedMachine.order.startTime), "HH:mm:ss")}</p>
-                            </div>
-                            <div>
-                                <p className="text-slate-500">Salidas por Golpe</p>
-                                <p className="font-medium">{selectedMachine.order.outputs}</p>
-                            </div>
-                            <div>
-                                <p className="text-slate-500">Golpes Totales Reales</p>
-                                <p className="font-medium">{selectedMachine.metrics.totalHits.toLocaleString()}</p>
-                            </div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-4 px-1">Detalles de Operación Actual</h3>
+                        <div className="bg-white border-2 border-indigo-200 rounded-2xl overflow-hidden transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer">
+                            <button 
+                                onClick={() => setIsCurrentExpanded(!isCurrentExpanded)}
+                                className="w-full text-left p-4 flex items-center justify-between bg-indigo-50/30 hover:bg-indigo-50/50 transition-colors focus:outline-none"
+                            >
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 w-full">
+                                    <div className="flex items-center gap-3 sm:w-1/4">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0 shadow-sm relative">
+                                            <span className="relative z-10 flex items-center gap-1">
+                                                {selectedMachine.order?.stagesDetail ? selectedMachine.order.stagesDetail.length + 1 : 1}
+                                            </span>
+                                            <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white ${selectedMachine.status === "RUNNING" ? "bg-emerald-500" : "bg-yellow-500"}`}></div>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-900">{selectedMachine.area}</h4>
+                                            <p className="text-xs text-slate-500">{selectedMachine.name}</p>
+                                        </div>
+                                    </div>
+                                    <div className="hidden sm:block w-px h-8 bg-slate-200"></div>
+                                    <div className="grid grid-cols-2 text-sm gap-4 flex-1">
+                                        <div>
+                                            <p className="text-slate-400 text-[10px] uppercase font-bold">Operador</p>
+                                            <p className="font-medium text-slate-700 text-xs">{selectedMachine.order.operatorName}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-400 text-[10px] uppercase font-bold">Desde</p>
+                                            <p className="font-medium text-slate-700 text-xs">
+                                                {format(new Date(selectedMachine.order.startTime), "HH:mm")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-4 pl-4 shrink-0">
+                                    <div className="hidden md:flex flex-col items-end">
+                                        {selectedMachine.metrics.totalUnits > 0 && <span className="text-sm font-bold text-indigo-600">{selectedMachine.metrics.totalUnits.toLocaleString()} und</span>}
+                                        <span className="text-xs text-slate-400">{((new Date().getTime() - new Date(selectedMachine.order.startTime).getTime()) / 3600000).toFixed(1)} h</span>
+                                    </div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isCurrentExpanded ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 transition-transform duration-200 ${isCurrentExpanded ? 'rotate-180' : ''}`}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </button>
+                            
+                            {isCurrentExpanded && (
+                                <div className="border-t border-indigo-100 bg-white p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Velocidad Actual</p>
+                                            <p className="text-lg font-bold text-slate-900">{selectedMachine.metrics.currentSpeed} <span className="text-xs font-normal text-slate-400">{selectedMachine.metrics.speedUnit}</span></p>
+                                        </div>
+                                        {selectedMachine.area === "Troquelado" && (
+                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Salidas / Golpe</p>
+                                                <p className="text-lg font-bold text-slate-900">{selectedMachine.order.outputs}</p>
+                                            </div>
+                                        )}
+                                        {selectedMachine.area === "Troquelado" && (
+                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Golpes Máquina</p>
+                                                <p className="text-lg font-bold text-slate-900">{selectedMachine.metrics.totalHits.toLocaleString()}</p>
+                                            </div>
+                                        )}
+                                        <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 shadow-sm">
+                                            <p className="text-[10px] text-indigo-500 uppercase tracking-wider mb-1">Total Producido</p>
+                                            <p className="text-lg font-bold text-indigo-600">{selectedMachine.metrics.totalUnits.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+
+                                    {selectedMachine.stops && selectedMachine.stops.length > 0 ? (
+                                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                            <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                                                <h5 className="font-bold text-slate-700 text-sm">Registro de Paradas (Turno Actual)</h5>
+                                                <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 font-bold rounded-md">{selectedMachine.stops.length} paradas</span>
+                                            </div>
+                                            <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                                                {selectedMachine.stops.slice().reverse().map((stop, sIdx) => (
+                                                    <div key={sIdx} className="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
+                                                            <span className="font-medium text-slate-700 text-sm">{stop.reason}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-6 text-sm text-slate-500">
+                                                            <span>{stop.startTime} - {stop.endTime}</span>
+                                                            <span className="font-medium text-slate-700 w-16 text-right">{stop.duration}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 text-center text-xs text-slate-400 italic bg-slate-50 rounded-xl border border-slate-100">
+                                            No se han registrado paradas en el turno actual.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {selectedMachine.stops && selectedMachine.stops.length > 0 && (
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-3 border-b pb-2">Últimas Paradas</h3>
-                            <div className="space-y-2">
-                                {selectedMachine.stops.slice(-3).reverse().map((stop, i) => (
-                                    <div key={i} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg text-sm border border-slate-100">
-                                        <div>
-                                            <span className="font-medium text-slate-700">{stop.reason}</span>
-                                            <div className="text-xs text-slate-400 mt-0.5">{stop.startTime} - {stop.endTime}</div>
+                    {/* Expandables for past stages */}
+                    {selectedMachine.order.stagesDetail && selectedMachine.order.stagesDetail.length > 0 && (
+                        <div className="mt-8">
+                            <h3 className="text-lg font-bold text-slate-900 mb-4 px-1">Historial de Etapas Anteriores</h3>
+                            <div className="space-y-3">
+                                {selectedMachine.order.stagesDetail.map((stage: DemoStageDetail, idx: number) => {
+                                    const isExpanded = expandedStage === idx;
+                                    const durationMs = new Date(stage.endTime).getTime() - new Date(stage.startTime).getTime();
+                                    const durationHrs = (durationMs / (1000 * 60 * 60)).toFixed(1);
+
+                                    return (
+                                        <div key={idx} className="bg-white border border-slate-200 rounded-2xl overflow-hidden transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer">
+                                            <button 
+                                                onClick={() => setExpandedStage(isExpanded ? null : idx)}
+                                                className="w-full text-left p-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors focus:outline-none"
+                                            >
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-sm shrink-0">
+                                                            {idx + 1}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-900">{stage.stageName}</h4>
+                                                            <p className="text-xs text-slate-500">{stage.machineName || "Logística"}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="hidden sm:block w-px h-8 bg-slate-200"></div>
+                                                    <div className="grid grid-cols-2 text-sm gap-4">
+                                                        <div>
+                                                            <p className="text-slate-400 text-[10px] uppercase">Operador</p>
+                                                            <p className="font-medium text-slate-700 text-xs">{stage.workerName || "Almacén"}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-slate-400 text-[10px] uppercase">Horario</p>
+                                                            <p className="font-medium text-slate-700 text-xs">
+                                                                {format(new Date(stage.startTime), "HH:mm")} - {format(new Date(stage.endTime), "HH:mm")}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-4">
+                                                    <div className="hidden md:flex flex-col items-end">
+                                                        {stage.unitsProduced > 0 && <span className="text-sm font-bold text-indigo-600">{stage.unitsProduced.toLocaleString()} und</span>}
+                                                        <span className="text-xs text-slate-400">{durationHrs} h</span>
+                                                    </div>
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            
+                                            {isExpanded && (
+                                                <div className="border-t border-slate-100 bg-slate-50/50 p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    {stage.unitsProduced > 0 && (
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                                            <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Velocidad Promedio</p>
+                                                                <p className="text-lg font-bold text-slate-900">{stage.averageSpeed} <span className="text-xs font-normal text-slate-400">{stage.speedUnit}</span></p>
+                                                            </div>
+                                                            {stage.stageName === "Troquelado" && (
+                                                                <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Salidas por Golpe</p>
+                                                                    <p className="text-lg font-bold text-slate-900">{stage.outputsPerStroke}</p>
+                                                                </div>
+                                                            )}
+                                                            <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Variabilidad</p>
+                                                                <p className="text-lg font-bold text-slate-900">{stage.standardDeviation}</p>
+                                                            </div>
+                                                            <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Producido</p>
+                                                                <p className="text-lg font-bold text-indigo-600">{stage.unitsProduced.toLocaleString()}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {stage.stops && stage.stops.length > 0 && (
+                                                        <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+                                                            <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                                                                <h5 className="font-bold text-slate-700 text-xs uppercase tracking-wide">Registro de Paradas</h5>
+                                                                <span className="text-[10px] px-2 py-0.5 bg-red-100 text-red-600 font-bold rounded-md">{stage.stops.length} paradas</span>
+                                                            </div>
+                                                            <div className="divide-y divide-slate-100">
+                                                                {stage.stops.map((stop: Stop, sIdx: number) => (
+                                                                    <div key={sIdx} className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
+                                                                            <span className="font-medium text-slate-700 text-xs">{stop.reason}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                                                                            <span>{stop.startTime} - {stop.endTime}</span>
+                                                                            <span className="font-medium text-slate-700 w-12 text-right">{stop.duration}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="font-mono text-slate-500 bg-white px-2 py-1 rounded border shadow-sm">
-                                            {stop.duration}
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

@@ -15,7 +15,7 @@ export interface Stop {
     reason: string;
 }
 
-export type ProductStage = "Impresión" | "Troquelado" | "Formado";
+export type ProductStage = "Llegada Materiales" | "Impresión" | "Troquelado" | "Formado" | "Envío a Bodega" | "Llegada a Bodega" | "Entrega Cliente";
 
 export interface ProductFlow {
     name: string;
@@ -27,13 +27,32 @@ export interface StageTimestamps {
     end?: Date;
 }
 
+export interface DemoStageDetail {
+  stageName: string;
+  machineName: string;
+  workerName: string;
+  workerRut: string;
+  startTime: string;
+  endTime: string;
+  unitsProduced: number;
+  outputsPerStroke: number;
+  averageSpeed: number;
+  speedUnit: string;
+  standardDeviation: number;
+  stops: Stop[];
+}
+
 export interface ActiveOrder {
   id: string; // OT Number
-  productName: string; // New: Product name representing the flow
-  flow: ProductStage[]; // New: The stages of this product
-  stageTimestamps?: Record<string, StageTimestamps>; // New: Timing for each stage
-  operatorName: string; // New: Name
-  operatorRut: string; // New: Rut
+  createdAt?: string; // New: creation date
+  client?: string; // New: client name
+  sku?: string; // New: specific SKU
+  productName: string; // Product name representing the flow
+  flow: ProductStage[]; // The stages of this product
+  stageTimestamps?: Record<string, StageTimestamps>; // Timing for each stage
+  stagesDetail?: DemoStageDetail[]; // Array of past stages details (for expandable panels)
+  operatorName: string; // Name
+  operatorRut: string; // Rut
   outputs: number; // Salidas troqueladora
   targetUnits?: number; // Optional target
   startTime: Date;
@@ -185,38 +204,88 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
         let flowName = "";
         let flowStages: ProductStage[] = [];
         let stageTimestamps: Record<string, StageTimestamps> = {};
+        let stagesDetail: DemoStageDetail[] = [];
 
         const baseTime = randomize ? Date.now() : 1700000000000; // Fixed date for SSR
 
         if (area === "Impresión") {
             const rand = randomize ? Math.random() : (i % 2 === 0 ? 0.2 : 0.8);
             flowName = rand < 0.5 ? "Cono" : "Tapas Troqueladas";
-            flowStages = rand < 0.5 ? ["Impresión", "Troquelado", "Formado"] : ["Impresión", "Troquelado"];
+            flowStages = rand < 0.5 ? ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"] : ["Llegada Materiales", "Impresión", "Troquelado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
             stageTimestamps = {
+                "Llegada Materiales": { start: new Date(baseTime - 5 * 3600000), end: new Date(baseTime - 4 * 3600000) },
                 "Impresión": { start: new Date(baseTime - 3600000) }
             };
         } else if (area === "Troquelado") {
             const rand = randomize ? Math.random() : (i % 2 === 0 ? 0.2 : 0.8);
             flowName = rand < 0.5 ? "Cono" : "Tapas Troqueladas";
-            flowStages = rand < 0.5 ? ["Impresión", "Troquelado", "Formado"] : ["Impresión", "Troquelado"];
+            flowStages = rand < 0.5 ? ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"] : ["Llegada Materiales", "Impresión", "Troquelado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
             const printStart = new Date(baseTime - 4 * 3600000);
             const printEnd = new Date(baseTime - 2 * 3600000);
             stageTimestamps = {
+                "Llegada Materiales": { start: new Date(baseTime - 6 * 3600000), end: new Date(baseTime - 5 * 3600000) },
                 "Impresión": { start: printStart, end: printEnd },
                 "Troquelado": { start: new Date(baseTime - 3600000) }
             };
+            stagesDetail = [
+                {
+                    stageName: "Impresión",
+                    machineName: "Impresión 1",
+                    workerName: randomize ? "Ana Torres" : "Maria Gonzalez",
+                    workerRut: "14.444.444-4",
+                    startTime: printStart.toISOString(),
+                    endTime: printEnd.toISOString(),
+                    unitsProduced: 65000,
+                    outputsPerStroke: 2,
+                    averageSpeed: 520,
+                    speedUnit: "m/min",
+                    standardDeviation: 1.25,
+                    stops: []
+                }
+            ];
         } else {
             flowName = "Cono";
-            flowStages = ["Impresión", "Troquelado", "Formado"];
+            flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
             const printStart = new Date(baseTime - 7 * 3600000);
             const printEnd = new Date(baseTime - 5 * 3600000);
             const troqStart = new Date(baseTime - 4 * 3600000);
             const troqEnd = new Date(baseTime - 2 * 3600000);
             stageTimestamps = {
+                "Llegada Materiales": { start: new Date(baseTime - 9 * 3600000), end: new Date(baseTime - 8 * 3600000) },
                 "Impresión": { start: printStart, end: printEnd },
                 "Troquelado": { start: troqStart, end: troqEnd },
                 "Formado": { start: new Date(baseTime - 3600000) }
             };
+            stagesDetail = [
+                {
+                    stageName: "Impresión",
+                    machineName: "Impresión 2",
+                    workerName: randomize ? "Carlos Lopez" : "Juan Perez Rosales",
+                    workerRut: "13.333.333-3",
+                    startTime: printStart.toISOString(),
+                    endTime: printEnd.toISOString(),
+                    unitsProduced: 120000,
+                    outputsPerStroke: 2,
+                    averageSpeed: 580,
+                    speedUnit: "m/min",
+                    standardDeviation: 1.4,
+                    stops: []
+                },
+                {
+                    stageName: "Troquelado",
+                    machineName: "Troquelado 4",
+                    workerName: randomize ? "Ana Torres" : "Maria Gonzalez",
+                    workerRut: "14.444.444-4",
+                    startTime: troqStart.toISOString(),
+                    endTime: troqEnd.toISOString(),
+                    unitsProduced: 118000,
+                    outputsPerStroke: 4,
+                    averageSpeed: 300,
+                    speedUnit: "gpm",
+                    standardDeviation: 1.8,
+                    stops: []
+                }
+            ];
         }
 
         const operatorInfo = operators[i % operators.length];
@@ -226,11 +295,15 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
             name: `${areaMap[i]} ${i + 1}`,
             area: areaMap[i],
             status: isRunning ? "RUNNING" : "IDLE",
-            order: isRunning ? {
+             order: isRunning ? {
                 id: `OT-202${i}`,
+                createdAt: new Date(baseTime - 12 * 3600000).toISOString(),
+                client: ["Coca-Cola", "Nestlé", "Unilever", "CCU", "Carozzi"][i % 5],
+                sku: `SKU-${flowName.substring(0, 3)}-${i}X`,
                 productName: flowName,
                 flow: flowStages,
                 stageTimestamps: stageTimestamps,
+                stagesDetail: stagesDetail,
                 operatorName: operatorInfo.name,
                 operatorRut: operatorInfo.rut,
                 outputs: 2, // Default outputs
@@ -351,17 +424,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
         if (rand < 0.33) {
             flowName = "Cono";
-            flowStages = ["Impresión", "Troquelado", "Formado"];
+            flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
         } else if (rand < 0.66) {
             flowName = "Tapas";
-            flowStages = ["Impresión", "Troquelado", "Formado"];
+            flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
         } else {
             flowName = "Tapas Troqueladas";
-            flowStages = ["Impresión", "Troquelado"];
+            flowStages = ["Llegada Materiales", "Impresión", "Troquelado", "Envío a Bodega", "Llegada a Bodega", "Entrega Cliente"];
         }
 
         const now = new Date();
         const stageTimestamps: Record<string, StageTimestamps> = {
+            "Llegada Materiales": { start: new Date(now.getTime() - 8 * 3600000), end: new Date(now.getTime() - 7 * 3600000) },
             "Impresión": { 
                 start: new Date(now.getTime() - 5 * 3600000), 
                 end: new Date(now.getTime() - 3 * 3600000) 
@@ -369,14 +443,35 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             "Troquelado": { start: now }
         };
 
+        const manualStagesDetail = [
+            {
+                stageName: "Impresión",
+                machineName: "Impresión 1",
+                workerName: "Ana Torres",
+                workerRut: "14.444.444-4",
+                startTime: new Date(now.getTime() - 5 * 3600000).toISOString(),
+                endTime: new Date(now.getTime() - 3 * 3600000).toISOString(),
+                unitsProduced: 60000,
+                outputsPerStroke: 2,
+                averageSpeed: 500,
+                speedUnit: "m/min",
+                standardDeviation: 1.2,
+                stops: []
+            }
+        ];
+
         return {
             ...m,
             status: "RUNNING",
             order: {
                 id: ot,
+                createdAt: new Date(now.getTime() - 24 * 3600000).toISOString(),
+                client: "Nestlé", 
+                sku: `SKU-${flowName.substring(0, 3)}-NEW`,
                 productName: flowName,
                 flow: flowStages,
                 stageTimestamps: stageTimestamps,
+                stagesDetail: manualStagesDetail,
                 operatorName: "Juan Perez (Default)", // Default for manual start
                 operatorRut: rut,
                 outputs: outputs,

@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { ProductStage, StageTimestamps } from "@/lib/demo-context";
+import type { StageDetail } from "@/lib/mockOtData";
 
 interface ProductionFlowStepperProps {
   flow: ProductStage[];
@@ -9,6 +10,7 @@ interface ProductionFlowStepperProps {
   status: "RUNNING" | "PAUSED" | "COMPLETED";
   stageTimestamps?: Record<string, StageTimestamps>;
   etaString?: string;
+  stagesDetail?: StageDetail[];
 }
 
 export function ProductionFlowStepper({
@@ -16,7 +18,8 @@ export function ProductionFlowStepper({
   currentStageName,
   status,
   stageTimestamps,
-  etaString
+  etaString,
+  stagesDetail
 }: ProductionFlowStepperProps) {
     if (!flow || flow.length === 0) return null;
 
@@ -48,6 +51,8 @@ export function ProductionFlowStepper({
                         textClasses += "text-slate-500";
                     }
 
+                    const stageDetail = stagesDetail?.find(s => s.stageName === stage);
+
                     return (
                         <div key={stage} className="relative flex flex-col items-center flex-1">
                             {/* Forward connecting line */}
@@ -73,6 +78,9 @@ export function ProductionFlowStepper({
                             <div className="flex flex-col items-center h-28 pt-1">
                                 <span className={textClasses}>
                                     {stage}
+                                    {stageDetail?.machineName && (
+                                        <span className="block text-xs text-slate-400 font-normal mt-0.5">{stageDetail.machineName}</span>
+                                    )}
                                     {isCurrent && <span className="block text-[11px] font-medium opacity-80 mt-1 font-normal">{status === "RUNNING" ? "(En Curso)" : status === "PAUSED" ? "(En Pausa)" : ""}</span>}
                                 </span>
                                 <div className="text-[11px] text-center mt-3 font-medium rounded text-slate-500 tracking-tight flex flex-col items-center gap-1.5 w-full">

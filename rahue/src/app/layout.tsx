@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dashboard de Conteo",
+  title: "Gestión Operacional Rahue",
   description:
-    "Visualización en tiempo real del conteo acumulado y promedio por minuto y hora.",
+    "Sistema de gestión operacional Rahue — monitoreo y control de producción en tiempo real.",
 };
 
 import { Suspense } from "react";

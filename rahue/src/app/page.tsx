@@ -142,21 +142,39 @@ function HomePageContent() {
 
       {/* Main Navigation Tabs (Only visible in Main View) */}
       {!selectedMachineId && (
-          <div className="flex space-x-1 rounded-xl bg-slate-100 p-1">
-            {["live", "history"].map((tab) => (
-                <button
-                key={tab}
-                onClick={() => setActiveView(tab as "live" | "history" | "workers")}
-                className={`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 ${
-                    activeView === tab
-                    ? "bg-white text-slate-900 shadow"
-                    : "text-slate-500 hover:bg-white/[0.12] hover:text-slate-700"
-                }`}
-                >
-                {tab === "live" && "Planta en Vivo"}
-                {tab === "history" && "Historial General"}
-                </button>
-            ))}
+          <div className="flex items-center gap-1 rounded-2xl bg-slate-100 p-1.5 self-start">
+            <button
+              onClick={() => setActiveView("live")}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                activeView === "live"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+              </svg>
+              Planta en Vivo
+              {activeView === "live" && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveView("history")}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                activeView === "history"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3v5h5" />
+                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+                <path d="M12 7v5l4 2" />
+              </svg>
+              Historial General
+            </button>
           </div>
       )}
 
@@ -193,9 +211,9 @@ function HomePageContent() {
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {expandedColumn === null ? (
                         /* 3 COLUMN VIEW */
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
                             {/* COLUMNA 1: PROCESOS */}
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col h-[700px]">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col">
                                 <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-2xl">
                                     <div className="flex items-center gap-2">
                                         <h2 className="font-bold text-slate-800">Procesos</h2>
@@ -203,15 +221,67 @@ function HomePageContent() {
                                     </div>
                                     <button onClick={() => setExpandedColumn("procesos")} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Expandir ↗</button>
                                 </div>
-                                <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                                    {activeProcesos.map(item => (
-                                        <ProcessCard key={item.id} item={item} onOtClick={() => handleOtClick(item.machineId)} />
-                                    ))}
+                                <div className="px-4 pt-3 pb-4">
+                                    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                        {activeProcesos.map((item, i) => {
+                                            const hash = item.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+                                            const TOTAL = 8; // 6 tintas + 2 papel
+                                            const completed = item.status === "IN_PROGRESS"
+                                                ? ((hash % 3) + 3) + ((hash % 2) + 1)
+                                                : item.status === "WAITING" ? (hash % 3) + 1 : TOTAL;
+                                            const pct = Math.round((completed / TOTAL) * 100);
+                                            const r = 8;
+                                            const circ = 2 * Math.PI * r;
+                                            const dash = (pct / 100) * circ;
+                                            return (
+                                                <div
+                                                    key={item.id}
+                                                    className={`flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50/60 transition-colors cursor-pointer ${i < activeProcesos.length - 1 ? "border-b border-slate-100" : ""}`}
+                                                    onClick={() => handleOtClick(item.machineId)}
+                                                >
+                                                    {/* Status dot */}
+                                                    <div className={`h-2 w-2 flex-shrink-0 rounded-full ${
+                                                        item.status === "IN_PROGRESS" ? "bg-indigo-500 animate-pulse" : "bg-amber-400"
+                                                    }`} />
+
+                                                    {/* Stage name */}
+                                                    <span className="text-xs font-semibold text-slate-800 flex-1 min-w-0 truncate">{item.stageName}</span>
+
+                                                    {/* OT badge */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleOtClick(item.machineId); }}
+                                                        className="flex-shrink-0 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-mono font-bold text-indigo-500 hover:bg-indigo-100 transition-colors"
+                                                    >
+                                                        {item.id}
+                                                    </button>
+
+                                                    {/* Circular progress ring + fraction */}
+                                                    <div className="flex-shrink-0 flex items-center gap-1">
+                                                        <svg width="20" height="20" viewBox="0 0 20 20">
+                                                            <circle cx="10" cy="10" r={r} fill="none" stroke="#e2e8f0" strokeWidth="2.5" />
+                                                            <circle
+                                                                cx="10" cy="10" r={r} fill="none"
+                                                                stroke={pct === 100 ? "#10b981" : "#6366f1"}
+                                                                strokeWidth="2.5"
+                                                                strokeLinecap="round"
+                                                                strokeDasharray={`${dash} ${circ}`}
+                                                                transform="rotate(-90 10 10)"
+                                                            />
+                                                        </svg>
+                                                        <span className="text-[10px] font-bold tabular-nums text-slate-500">{completed}/{TOTAL}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {activeProcesos.length === 0 && (
+                                            <p className="text-xs text-slate-400 text-center py-4">Sin procesos activos</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* COLUMNA 2: MÁQUINAS */}
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col h-[700px]">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col">
                                 <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-2xl">
                                     <div className="flex items-center gap-2">
                                         <h2 className="font-bold text-slate-800">Máquinas</h2>
@@ -221,15 +291,96 @@ function HomePageContent() {
                                     </div>
                                     <button onClick={() => setExpandedColumn("maquinas")} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Expandir ↗</button>
                                 </div>
-                                <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                                    {machines.filter(m => MACHINE_AREAS.includes(m.area as string) && (m.status === "RUNNING" || m.order?.status === "PAUSED")).map(m => (
-                                        <MachineCardCompact key={m.id} machine={m} onClick={() => setSelectedMachineId(m.id)} onOtClick={() => handleOtClick(m.id)} />
-                                    ))}
+                                <div className="p-4 space-y-2">
+                                    {MACHINE_AREAS.map(area => {
+                                        const areaMachines = machines.filter(m => m.area === area && (m.status === "RUNNING" || m.order?.status === "PAUSED"));
+                                        const activeCount = areaMachines.filter(m => m.status === "RUNNING").length;
+                                        const isOpen = expandedAreas.has(area);
+
+                                        return (
+                                            <div key={area} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                                <button
+                                                    onClick={() => toggleArea(area)}
+                                                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-semibold text-slate-700">{area}</span>
+                                                        <span className="text-xs text-slate-400">:</span>
+                                                        <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+                                                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                                            {activeCount} Activa{activeCount !== 1 ? "s" : ""}
+                                                        </span>
+                                                    </div>
+                                                    <svg
+                                                        width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                                        className={`text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                                                    >
+                                                        <polyline points="6 9 12 15 18 9" />
+                                                    </svg>
+                                                </button>
+                                                {isOpen && areaMachines.length > 0 && (
+                                                    <div className="border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                        {areaMachines.map((m, i) => {
+                                                            const isPaused = m.order?.status === "PAUSED";
+                                                            const progress = m.order?.targetUnits
+                                                                ? Math.min(100, Math.round((m.metrics.totalUnits / m.order.targetUnits) * 100))
+                                                                : 0;
+                                                            return (
+                                                                <div
+                                                                    key={m.id}
+                                                                    onClick={() => setSelectedMachineId(m.id)}
+                                                                    className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-indigo-50/60 transition-colors ${i < areaMachines.length - 1 ? "border-b border-slate-100" : ""}`}
+                                                                >
+                                                                    {/* Status dot */}
+                                                                    <div className={`h-2 w-2 flex-shrink-0 rounded-full ${
+                                                                        m.status === "RUNNING" ? "bg-emerald-500 animate-pulse" :
+                                                                        isPaused ? "bg-amber-400" : "bg-slate-300"
+                                                                    }`} />
+
+                                                                    {/* Name */}
+                                                                    <span className="text-xs font-semibold text-slate-800 w-20 flex-shrink-0 truncate">{m.name}</span>
+
+                                                                    {/* OT badge */}
+                                                                    {m.order ? (
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleOtClick(m.id); }}
+                                                                            className="flex-shrink-0 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-mono font-bold text-indigo-500 hover:bg-indigo-100 transition-colors"
+                                                                        >
+                                                                            {m.order.id}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span className="flex-shrink-0 text-[10px] text-slate-300 px-1.5">Sin OT</span>
+                                                                    )}
+
+                                                                    {/* Progress bar + % */}
+                                                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                            <div
+                                                                                className={`h-full rounded-full transition-all duration-1000 ${isPaused ? "bg-amber-400" : "bg-indigo-500"}`}
+                                                                                style={{ width: `${progress}%` }}
+                                                                            />
+                                                                        </div>
+                                                                        <span className="flex-shrink-0 text-[11px] font-bold tabular-nums text-slate-600 w-7 text-right">{progress}%</span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                                {isOpen && areaMachines.length === 0 && (
+                                                    <div className="px-3 pb-3 border-t border-slate-100 pt-2">
+                                                        <p className="text-xs text-slate-400 text-center py-2">Sin máquinas activas</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
                             {/* COLUMNA 3: MOVIMIENTOS */}
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col h-[700px]">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm flex flex-col">
                                 <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-2xl">
                                     <div className="flex items-center gap-2">
                                         <h2 className="font-bold text-slate-800">Movimientos</h2>
@@ -237,10 +388,45 @@ function HomePageContent() {
                                     </div>
                                     <button onClick={() => setExpandedColumn("movimientos")} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Expandir ↗</button>
                                 </div>
-                                <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                                    {activeMovimientos.map(item => (
-                                        <ProcessCard key={item.id} item={item} onOtClick={() => handleOtClick(item.machineId)} />
-                                    ))}
+                                <div className="px-4 pt-3 pb-4">
+                                    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                        {activeMovimientos.map((item, i) => {
+                                            const isActive = item.status === "IN_PROGRESS";
+                                            return (
+                                                <div
+                                                    key={item.id}
+                                                    className={`flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50/60 transition-colors cursor-pointer ${i < activeMovimientos.length - 1 ? "border-b border-slate-100" : ""}`}
+                                                    onClick={() => handleOtClick(item.machineId)}
+                                                >
+                                                    {/* Status dot */}
+                                                    <div className={`h-2 w-2 flex-shrink-0 rounded-full ${
+                                                        isActive ? "bg-indigo-500 animate-pulse" : "bg-amber-400"
+                                                    }`} />
+
+                                                    {/* Stage name */}
+                                                    <span className="text-xs font-semibold text-slate-800 flex-1 min-w-0 truncate">{item.stageName}</span>
+
+                                                    {/* OT badge */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleOtClick(item.machineId); }}
+                                                        className="flex-shrink-0 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-mono font-bold text-indigo-500 hover:bg-indigo-100 transition-colors"
+                                                    >
+                                                        {item.id}
+                                                    </button>
+
+                                                    {/* Time in stage */}
+                                                    {item.timeInStage && (
+                                                        <span className="flex-shrink-0 text-[10px] font-medium text-slate-400 tabular-nums">
+                                                            ⏱ {item.timeInStage}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                        {activeMovimientos.length === 0 && (
+                                            <p className="text-xs text-slate-400 text-center py-4">Sin movimientos activos</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

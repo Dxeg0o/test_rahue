@@ -188,12 +188,16 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
     // 3 -> Impresión
     // 8 -> Troquelado
     // 4 -> Formado
+    // 8 -> Llegada Materiales (procesos)
+    // 4 -> Tránsito a Bodega (movimientos)
+    // 4 -> Entrega Cliente (movimientos)
     const areaMap: ProductStage[] = [
         "Impresión", "Impresión", "Impresión",
         "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado", "Troquelado",
         "Formado", "Formado", "Formado", "Formado",
-        "Llegada Materiales", "Llegada Materiales",
-        "Tránsito a Bodega", "Tránsito a Bodega", "Entrega Cliente", "Entrega Cliente"
+        "Llegada Materiales", "Llegada Materiales", "Llegada Materiales", "Llegada Materiales", "Llegada Materiales", "Llegada Materiales", "Llegada Materiales", "Llegada Materiales",
+        "Tránsito a Bodega", "Tránsito a Bodega", "Tránsito a Bodega", "Tránsito a Bodega",
+        "Entrega Cliente", "Entrega Cliente", "Entrega Cliente", "Entrega Cliente"
     ];
 
     // Helper: builds stage timestamps for all completed stages up to current area
@@ -213,20 +217,36 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
         return timestamps;
     }
 
+    // Per-area counters for naming
+    const areaCounters: Record<string, number> = {};
+
+    // Products with their flows and SKUs
+    const productCatalog = [
+        { name: "Cono",              flow: [...STANDARD_FLOW] as ProductStage[],                                                                           skus: ["CONO-350-6PK", "CONO-500-4PK", "CONO-250-12PK", "CONO-1L-3PK"] },
+        { name: "Tapas",             flow: [...STANDARD_FLOW] as ProductStage[],                                                                           skus: ["TAPA-60MM-STD", "TAPA-80MM-PRE", "TAPA-45MM-MIN", "TAPA-100MM-IND"] },
+        { name: "Tapas Troqueladas", flow: ["Llegada Materiales", "Impresión", "Troquelado", "Tránsito a Bodega", "Entrega Cliente"] as ProductStage[],    skus: ["TTROQ-60MM-A", "TTROQ-80MM-B", "TTROQ-45MM-C"] },
+    ];
+    const clientNames = ["Coca-Cola", "Nestlé", "Unilever", "CCU", "Carozzi", "Soprole", "Colun", "Watts", "Agrosuper", "Iansa"];
+
     for (let i = 0; i < areaMap.length; i++) {
         // Deterministic status for initial render
         const isRunning = true;
         const initialHits = 1500 + (i * 500);
 
         const area = areaMap[i];
+        // Track per-area counter
+        areaCounters[area] = (areaCounters[area] || 0) + 1;
+        const areaNum = areaCounters[area];
+
         let speedUnit = "gpm";
         if (area === "Impresión") speedUnit = "m/min";
         if (area === "Formado") speedUnit = "u/min";
         const isLogistics = ["Llegada Materiales", "Tránsito a Bodega", "Entrega Cliente"].includes(area);
         if (isLogistics) speedUnit = "N/A";
 
-        const flowName = "Cono";
-        const flowStages: ProductStage[] = [...STANDARD_FLOW];
+        const product = productCatalog[i % productCatalog.length];
+        const flowName = isLogistics ? product.name : "Cono";
+        const flowStages: ProductStage[] = isLogistics ? [...product.flow] : [...STANDARD_FLOW];
         let stagesDetail: DemoStageDetail[] = [];
 
         const baseTime = randomize ? Date.now() : 1700000000000; // Fixed date for SSR
@@ -289,17 +309,18 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
         }
 
         const operatorInfo = operators[i % operators.length];
+        const clientName = clientNames[i % clientNames.length];
 
         machines.push({
-            id: isLogistics ? `logistica-${i + 1}` : `machine-${i + 1}`,
-            name: `${areaMap[i]} ${isLogistics ? i - 14 : i + 1}`,
+            id: isLogistics ? `logistica-${area.substring(0, 3).toLowerCase()}-${areaNum}` : `machine-${i + 1}`,
+            name: `${area} ${areaNum}`,
             area: areaMap[i],
             status: isRunning ? "RUNNING" : "IDLE",
             order: isRunning ? {
-                id: isLogistics ? `OT-300${i}` : `OT-202${i}`,
+                id: isLogistics ? `OT-${area === "Llegada Materiales" ? 3100 + areaNum : area === "Tránsito a Bodega" ? 3200 + areaNum : 3300 + areaNum}` : `OT-202${i}`,
                 createdAt: new Date(baseTime - 12 * 3600000).toISOString(),
-                client: ["Coca-Cola", "Nestlé", "Unilever", "CCU", "Carozzi"][i % 5],
-                sku: `SKU-${flowName.substring(0, 3)}-${i}X`,
+                client: clientName,
+                sku: isLogistics ? product.skus[areaNum % product.skus.length] : `SKU-CON-${i}X`,
                 productName: flowName,
                 flow: flowStages,
                 stageTimestamps: stageTimestamps,
@@ -311,19 +332,19 @@ const generateInitialMachines = (randomize: boolean = false): MachineState[] => 
                 startTime: new Date(baseTime - 3600000),
                 status: isLogistics && randomize ? (Math.random() > 0.5 ? "RUNNING" : "PAUSED") : "RUNNING"
             } : null,
-            metrics: { 
-                totalHits: isLogistics ? 0 : initialHits, 
+            metrics: {
+                totalHits: isLogistics ? 0 : initialHits,
                 totalUnits: isLogistics ? 0 : initialHits * 2, // 2 outputs
-                hitsPerMinute: isLogistics ? 0 : 350, 
+                hitsPerMinute: isLogistics ? 0 : 350,
                 currentSpeed: isLogistics ? 0 : (isRunning ? 330 + (i * 5) : 0),
                 minSpeed: isLogistics ? 0 : (isRunning ? 300 + (i * 2) : 0),
                 maxSpeed: isLogistics ? 0 : (isRunning ? 380 + (i * 2) : 0),
-                standardDeviation: isLogistics ? 0 : (isRunning ? parseFloat(((randomize ? Math.random() : 0.5) * 5 + 1).toFixed(2)) : 0), 
+                standardDeviation: isLogistics ? 0 : (isRunning ? parseFloat(((randomize ? Math.random() : 0.5) * 5 + 1).toFixed(2)) : 0),
                 outputsPerStroke: 2,
                 speedUnit: speedUnit
             },
             history: [],
-            stops: isRunning && !isLogistics ? generateStops(randomize ? Math.floor(Math.random() * 3) + 2 : 2, randomize) : [], 
+            stops: isRunning && !isLogistics ? generateStops(randomize ? Math.floor(Math.random() * 3) + 2 : 2, randomize) : [],
             internalHits: isLogistics ? 0 : initialHits
         });
     }

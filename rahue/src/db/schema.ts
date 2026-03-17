@@ -20,12 +20,18 @@ export const etapa = pgTable("etapa", {
   id: uuid("id").primaryKey().defaultRandom(),
   nombre: text("nombre").notNull().unique(),
   descripcion: text("descripcion"),
+  categoria: text("categoria", {
+    enum: ["logistica", "impresion", "troquelado", "formado", "control_calidad", "empaque", "otro"],
+  })
+    .notNull()
+    .default("otro"), // para agrupar en el UI
   tipoMetrica: text("tipo_metrica", {
     enum: ["golpes_min", "metros_min", "unidades_min", "logistica"],
   })
     .notNull()
     .default("logistica"),
   unidadDisplay: text("unidad_display"), // "gpm", "m/min", "u/min", NULL para logística
+  icono: text("icono"), // nombre de ícono para UI (ej: "truck", "printer", "scissors")
   ordenDefault: integer("orden_default"),
 });
 
@@ -50,12 +56,15 @@ export const workflowEtapa = pgTable(
       .notNull()
       .references(() => etapa.id, { onDelete: "restrict" }),
     orden: integer("orden").notNull(),
+    // Nombre personalizado del paso dentro de este workflow (opcional).
+    // Si es NULL, se usa el nombre de la etapa.
+    // Útil cuando la misma etapa aparece 2+ veces: "Troquelado 1", "Troquelado 2"
+    nombrePaso: text("nombre_paso"),
+    // Si este paso requiere máquina o es solo logístico/manual
+    requiereMaquina: boolean("requiere_maquina").default(false),
   },
   (table) => [
-    unique("uq_workflow_etapa_producto_etapa").on(
-      table.tipoProductoId,
-      table.etapaId
-    ),
+    // Ya NO hay UNIQUE(tipo_producto_id, etapa_id) → una etapa puede repetirse
     unique("uq_workflow_etapa_producto_orden").on(
       table.tipoProductoId,
       table.orden
@@ -155,6 +164,9 @@ export const actividadOt = pgTable(
     etapaId: uuid("etapa_id")
       .notNull()
       .references(() => etapa.id),
+    // Referencia al paso específico del workflow (permite saber cuál de los N
+    // "Troquelado" del workflow es este). NULL para actividades legacy.
+    workflowEtapaId: uuid("workflow_etapa_id").references(() => workflowEtapa.id),
     maquinaId: text("maquina_id").references(() => maquina.id), // NULL para logística
     operadorId: uuid("operador_id").references(() => usuario.id),
 
@@ -189,7 +201,8 @@ export const actividadOt = pgTable(
     ordenEtapa: integer("orden_etapa"),
   },
   (table) => [
-    unique("uq_actividad_ot_etapa").on(table.otId, table.etapaId),
+    // UNIQUE por OT + paso del workflow (no por etapa, porque puede repetirse)
+    unique("uq_actividad_ot_wf_etapa").on(table.otId, table.workflowEtapaId),
     index("idx_actividad_ot_ot").on(table.otId),
     index("idx_actividad_ot_maquina").on(table.maquinaId),
     index("idx_actividad_ot_operador").on(table.operadorId),
@@ -297,16 +310,20 @@ export const tipoProductoRelations = relations(tipoProducto, ({ many }) => ({
   ots: many(ot),
 }));
 
-export const workflowEtapaRelations = relations(workflowEtapa, ({ one }) => ({
-  tipoProducto: one(tipoProducto, {
-    fields: [workflowEtapa.tipoProductoId],
-    references: [tipoProducto.id],
-  }),
-  etapa: one(etapa, {
-    fields: [workflowEtapa.etapaId],
-    references: [etapa.id],
-  }),
-}));
+export const workflowEtapaRelations = relations(
+  workflowEtapa,
+  ({ one, many }) => ({
+    tipoProducto: one(tipoProducto, {
+      fields: [workflowEtapa.tipoProductoId],
+      references: [tipoProducto.id],
+    }),
+    etapa: one(etapa, {
+      fields: [workflowEtapa.etapaId],
+      references: [etapa.id],
+    }),
+    actividades: many(actividadOt),
+  })
+);
 
 export const maquinaRelations = relations(maquina, ({ one, many }) => ({
   etapa: one(etapa, {
@@ -341,6 +358,10 @@ export const actividadOtRelations = relations(
     etapa: one(etapa, {
       fields: [actividadOt.etapaId],
       references: [etapa.id],
+    }),
+    workflowEtapa: one(workflowEtapa, {
+      fields: [actividadOt.workflowEtapaId],
+      references: [workflowEtapa.id],
     }),
     maquina: one(maquina, {
       fields: [actividadOt.maquinaId],

@@ -462,7 +462,7 @@ function DeleteConfirm({ name, onConfirm, onCancel }: { name: string; onConfirm:
           </div>
         </div>
         <p className="text-sm text-slate-600">
-          ¿Seguro que deseas eliminar el workflow <strong>"{name}"</strong>?
+          ¿Seguro que deseas eliminar el workflow <strong>&ldquo;{name}&rdquo;</strong>?
         </p>
         <div className="flex gap-3">
           <button onClick={onCancel} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">

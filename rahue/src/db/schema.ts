@@ -98,7 +98,7 @@ export const usuario = pgTable(
   "usuario",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    auth0Id: text("auth0_id").notNull().unique(),
+    supabaseId: text("supabase_id").notNull().unique(),
     nombre: text("nombre").notNull(),
     email: text("email"),
     rut: text("rut").unique(), // para escaneo de credencial
@@ -110,7 +110,7 @@ export const usuario = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [
-    index("idx_usuario_auth0").on(table.auth0Id),
+    index("idx_usuario_supabase").on(table.supabaseId),
     index("idx_usuario_rut").on(table.rut),
   ]
 );

@@ -1,14 +1,16 @@
 "use client";
 
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { logout } from "@/app/auth/actions";
 
 export function DemoWizard() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // Hide entirely in embed mode
+  // Hide entirely in embed mode or on auth pages
   if (searchParams.get("embed") === "true") return null;
+  if (pathname.startsWith("/auth")) return null;
 
   const navLinks = [
     { label: "Gestión", href: "/" },
@@ -28,7 +30,7 @@ export function DemoWizard() {
             Gestión Operacional Rahue
           </span>
 
-          {/* Nav Links */}
+          {/* Nav Links + Logout */}
           <div className="flex items-center gap-1">
             {navLinks.map(({ label, href }) => {
               const isActive = pathname === href;
@@ -46,6 +48,14 @@ export function DemoWizard() {
                 </Link>
               );
             })}
+            <form action={logout}>
+              <button
+                type="submit"
+                className="ml-3 px-4 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                Cerrar sesión
+              </button>
+            </form>
           </div>
         </div>
       </nav>

@@ -5,7 +5,7 @@ import { format } from "date-fns";
 
 // --- Types ---
 
-export type OrderStatus = "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED";
+export type OrderStatus = "IDLE" | "WARMING_UP" | "RUNNING" | "PAUSED" | "COMPLETED";
 
 export interface Stop {
     id: string;
@@ -62,6 +62,7 @@ export interface ActiveOrder {
   startTime: Date;
   lastPauseStart?: Date; // New: Track pause start time
   pauseReason?: string; // New: Track reason
+  warmupHits?: number; // Hits accumulated during warmup phase (merma)
   status: OrderStatus;
 }
 
@@ -105,6 +106,7 @@ interface DemoContextType {
   step: DemoStep;
   setStep: (step: DemoStep) => void;
   startMachineOrder: (machineId: string, ot: string, rut: string, outputs: number, target: number) => void;
+  beginRealProduction: (machineId: string) => void;
   stopMachineOrder: (machineId: string) => void;
   pauseMachine: (machineId: string, reason: string) => void;
   resumeMachine: (machineId: string) => void;
@@ -490,7 +492,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
                 outputs: outputs,
                 targetUnits: target,
                 startTime: new Date(),
-                status: "RUNNING"
+                status: "WARMING_UP"
             },
             metrics: {
                 totalHits: 0,
@@ -512,6 +514,20 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (step === "OPERATOR_START") {
         setStep("DASHBOARD_VIEW");
     }
+  };
+
+  const beginRealProduction = (machineId: string) => {
+    setMachines(prev => prev.map(m => {
+        if (m.id !== machineId || !m.order || m.order.status !== "WARMING_UP") return m;
+        return {
+            ...m,
+            order: {
+                ...m.order,
+                status: "RUNNING" as OrderStatus,
+                warmupHits: m.metrics.totalHits,
+            }
+        };
+    }));
   };
 
   const pauseMachine = (machineId: string, reason: string) => {
@@ -587,7 +603,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <DemoContext.Provider value={{ machines, step, setStep, startMachineOrder, stopMachineOrder, pauseMachine, resumeMachine, resetDemo }}>
+    <DemoContext.Provider value={{ machines, step, setStep, startMachineOrder, beginRealProduction, stopMachineOrder, pauseMachine, resumeMachine, resetDemo }}>
       {children}
     </DemoContext.Provider>
   );

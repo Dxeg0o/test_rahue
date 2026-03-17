@@ -19,6 +19,9 @@ import { ActiveOts } from "@/components/active-ots";
 import { MachineCard } from "@/components/machine-card";
 import { MachineCardCompact } from "@/components/machine-card-compact";
 import { ProcessCard } from "@/components/process-card";
+import { ManagementSidebar, ManagementSection } from "@/components/management-sidebar";
+import { GestionOtsView } from "@/components/gestion-ots-view";
+import { GestionWorkflowsView } from "@/components/gestion-workflows-view";
 
 // Mock data removed in favor of DemoContext
 export default function HomePage() {
@@ -58,6 +61,9 @@ function HomePageContent() {
       timeInStage: `${((new Date().getTime() - new Date(m.order!.startTime).getTime()) / 3600000).toFixed(1)} h`
   }));
 
+
+  // Sidebar section state
+  const [activeSection, setActiveSection] = useState<ManagementSection>("planta");
 
   // High-level Tabs: "View Mode"
   const [activeView, setActiveView] = useState<"live" | "history" | "workers">("live");
@@ -111,9 +117,22 @@ function HomePageContent() {
   };
 
   return (
+    <div className={isEmbed ? "flex min-h-screen w-full" : "flex"} style={isEmbed ? {} : { minHeight: "calc(100vh - 4rem)" }}>
+      {/* Sidebar (hidden in embed mode) */}
+      {!isEmbed && (
+        <ManagementSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+      )}
+
+      {/* Right panel: section content */}
+      <div className="flex-1 min-w-0 overflow-y-auto">
+        {!isEmbed && activeSection === "ots" ? (
+          <GestionOtsView />
+        ) : !isEmbed && activeSection === "workflows" ? (
+          <GestionWorkflowsView />
+        ) : (
     <main className={isEmbed
       ? "flex min-h-screen w-full flex-col"
-      : "mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-6 py-10"
+      : "mx-auto flex min-h-[calc(100vh-4rem)] max-w-full flex-col gap-8 px-8 py-8"
     }>
 
       {/* Header (hidden in embed mode) */}
@@ -784,5 +803,8 @@ function HomePageContent() {
       )}
 
     </main>
+        )}
+      </div>
+    </div>
   );
 }

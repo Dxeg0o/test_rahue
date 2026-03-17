@@ -24,17 +24,18 @@ CREATE TABLE etapa (
     tipo_metrica    TEXT NOT NULL DEFAULT 'logistica'
                     CHECK (tipo_metrica IN ('golpes_min', 'metros_min', 'unidades_min', 'logistica')),
     unidad_display  TEXT,  -- "gpm", "m/min", "u/min", NULL para logística
-    icono           TEXT,  -- nombre de ícono para UI
-    orden_default   INT   -- orden sugerido (para UX al crear workflows)
+    icono           TEXT   -- nombre de ícono para UI
+    -- SIN orden_default: las etapas son bloques sin orden inherente.
+    -- El orden lo define workflow_etapa.orden dentro de cada workflow.
 );
 
--- Catálogo de 19 etapas predefinidas agrupadas por categoría:
--- Logística (5): Llegada Materiales, Tránsito a Bodega, Entrega Cliente, Tránsito Interno, Almacenamiento Intermedio
--- Impresión (3): Impresión, Barnizado, Secado
--- Troquelado (3): Troquelado, Descartone, Medio Corte
--- Formado (3): Formado, Pegado, Doblado
--- Control de calidad (2): Control de Calidad, Muestreo
--- Empaque (3): Empaque, Paletizado, Etiquetado
+-- 6 etapas predefinidas:
+--   Llegada Materiales (logistica), Impresión (metros_min),
+--   Troquelado (golpes_min), Formado (unidades_min),
+--   Tránsito a Bodega (logistica), Entrega Cliente (logistica)
+--
+-- Se pueden agregar más etapas al catálogo según necesidad.
+-- Las etapas son bloques sin orden inherente — el orden lo define cada workflow.
 
 
 -- Tipo de producto = Workflow.

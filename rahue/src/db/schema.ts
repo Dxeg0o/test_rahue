@@ -16,6 +16,8 @@ import { relations, sql } from "drizzle-orm";
 // CAPA 1: CATÁLOGOS
 // ============================================================================
 
+// Etapa = bloque reutilizable. NO tiene orden propio.
+// El orden lo define workflow_etapa.orden dentro de cada workflow.
 export const etapa = pgTable("etapa", {
   id: uuid("id").primaryKey().defaultRandom(),
   nombre: text("nombre").notNull().unique(),
@@ -24,7 +26,7 @@ export const etapa = pgTable("etapa", {
     enum: ["logistica", "impresion", "troquelado", "formado", "control_calidad", "empaque", "otro"],
   })
     .notNull()
-    .default("otro"), // para agrupar en el UI
+    .default("otro"), // para agrupar en el UI al armar workflows
   tipoMetrica: text("tipo_metrica", {
     enum: ["golpes_min", "metros_min", "unidades_min", "logistica"],
   })
@@ -32,7 +34,6 @@ export const etapa = pgTable("etapa", {
     .default("logistica"),
   unidadDisplay: text("unidad_display"), // "gpm", "m/min", "u/min", NULL para logística
   icono: text("icono"), // nombre de ícono para UI (ej: "truck", "printer", "scissors")
-  ordenDefault: integer("orden_default"),
 });
 
 export const tipoProducto = pgTable("tipo_producto", {

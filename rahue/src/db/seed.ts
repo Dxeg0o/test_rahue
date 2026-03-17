@@ -53,21 +53,42 @@ async function seed() {
   const etapas = await db
     .insert(etapa)
     .values([
-      // ── Logística ──
       {
         nombre: "Llegada Materiales",
         categoria: "logistica",
         tipoMetrica: "logistica",
         icono: "truck",
-        ordenDefault: 1,
         descripcion: "Recepción e inspección de materia prima",
+      },
+      {
+        nombre: "Impresión",
+        categoria: "impresion",
+        tipoMetrica: "metros_min",
+        unidadDisplay: "m/min",
+        icono: "printer",
+        descripcion: "Impresión sobre material plano",
+      },
+      {
+        nombre: "Troquelado",
+        categoria: "troquelado",
+        tipoMetrica: "golpes_min",
+        unidadDisplay: "gpm",
+        icono: "scissors",
+        descripcion: "Corte con troquel (golpes por minuto)",
+      },
+      {
+        nombre: "Formado",
+        categoria: "formado",
+        tipoMetrica: "unidades_min",
+        unidadDisplay: "u/min",
+        icono: "box",
+        descripcion: "Formación del producto final (conos, envases, etc.)",
       },
       {
         nombre: "Tránsito a Bodega",
         categoria: "logistica",
         tipoMetrica: "logistica",
         icono: "warehouse",
-        ordenDefault: 90,
         descripcion: "Traslado de producto terminado a bodega",
       },
       {
@@ -75,156 +96,7 @@ async function seed() {
         categoria: "logistica",
         tipoMetrica: "logistica",
         icono: "package-check",
-        ordenDefault: 99,
         descripcion: "Despacho al cliente final",
-      },
-      {
-        nombre: "Tránsito Interno",
-        categoria: "logistica",
-        tipoMetrica: "logistica",
-        icono: "move",
-        ordenDefault: 50,
-        descripcion: "Traslado entre estaciones de trabajo",
-      },
-      {
-        nombre: "Almacenamiento Intermedio",
-        categoria: "logistica",
-        tipoMetrica: "logistica",
-        icono: "archive",
-        ordenDefault: 51,
-        descripcion: "Almacenaje temporal entre procesos",
-      },
-
-      // ── Impresión ──
-      {
-        nombre: "Impresión",
-        categoria: "impresion",
-        tipoMetrica: "metros_min",
-        unidadDisplay: "m/min",
-        icono: "printer",
-        ordenDefault: 10,
-        descripcion: "Impresión sobre material plano",
-      },
-      {
-        nombre: "Barnizado",
-        categoria: "impresion",
-        tipoMetrica: "metros_min",
-        unidadDisplay: "m/min",
-        icono: "paintbrush",
-        ordenDefault: 11,
-        descripcion: "Aplicación de barniz protector post-impresión",
-      },
-      {
-        nombre: "Secado",
-        categoria: "impresion",
-        tipoMetrica: "logistica",
-        icono: "wind",
-        ordenDefault: 12,
-        descripcion: "Secado de tinta o barniz",
-      },
-
-      // ── Troquelado ──
-      {
-        nombre: "Troquelado",
-        categoria: "troquelado",
-        tipoMetrica: "golpes_min",
-        unidadDisplay: "gpm",
-        icono: "scissors",
-        ordenDefault: 20,
-        descripcion: "Corte con troquel (golpes por minuto)",
-      },
-      {
-        nombre: "Descartone",
-        categoria: "troquelado",
-        tipoMetrica: "unidades_min",
-        unidadDisplay: "u/min",
-        icono: "trash-2",
-        ordenDefault: 21,
-        descripcion: "Remoción del material sobrante post-troquelado",
-      },
-      {
-        nombre: "Medio Corte",
-        categoria: "troquelado",
-        tipoMetrica: "golpes_min",
-        unidadDisplay: "gpm",
-        icono: "slice",
-        ordenDefault: 22,
-        descripcion: "Corte parcial del material (kiss-cut)",
-      },
-
-      // ── Formado ──
-      {
-        nombre: "Formado",
-        categoria: "formado",
-        tipoMetrica: "unidades_min",
-        unidadDisplay: "u/min",
-        icono: "box",
-        ordenDefault: 30,
-        descripcion: "Formación del producto final (conos, envases, etc.)",
-      },
-      {
-        nombre: "Pegado",
-        categoria: "formado",
-        tipoMetrica: "unidades_min",
-        unidadDisplay: "u/min",
-        icono: "droplets",
-        ordenDefault: 31,
-        descripcion: "Aplicación de adhesivo y pegado de componentes",
-      },
-      {
-        nombre: "Doblado",
-        categoria: "formado",
-        tipoMetrica: "unidades_min",
-        unidadDisplay: "u/min",
-        icono: "fold-vertical",
-        ordenDefault: 32,
-        descripcion: "Plegado del material según especificación",
-      },
-
-      // ── Control de calidad ──
-      {
-        nombre: "Control de Calidad",
-        categoria: "control_calidad",
-        tipoMetrica: "logistica",
-        icono: "shield-check",
-        ordenDefault: 80,
-        descripcion: "Inspección visual y dimensional del producto",
-      },
-      {
-        nombre: "Muestreo",
-        categoria: "control_calidad",
-        tipoMetrica: "logistica",
-        icono: "flask-conical",
-        ordenDefault: 81,
-        descripcion: "Toma de muestras para control estadístico",
-      },
-
-      // ── Empaque ──
-      {
-        nombre: "Empaque",
-        categoria: "empaque",
-        tipoMetrica: "unidades_min",
-        unidadDisplay: "u/min",
-        icono: "package",
-        ordenDefault: 85,
-        descripcion: "Empacado del producto terminado",
-      },
-      {
-        nombre: "Paletizado",
-        categoria: "empaque",
-        tipoMetrica: "logistica",
-        icono: "layers",
-        ordenDefault: 86,
-        descripcion: "Armado de pallets para despacho",
-      },
-      {
-        nombre: "Etiquetado",
-        categoria: "empaque",
-        tipoMetrica: "unidades_min",
-        unidadDisplay: "u/min",
-        icono: "tag",
-        ordenDefault: 87,
-        descripcion: "Aplicación de etiquetas al producto o empaque",
       },
     ])
     .returning();
@@ -239,28 +111,18 @@ async function seed() {
     .values([
       {
         nombre: "Cono",
-        descripcion: "Cono de helado - flujo completo con impresión, troquelado y formado",
+        descripcion: "Cono de helado - flujo completo",
         color: "indigo",
       },
       {
-        nombre: "Tapas Impresas",
-        descripcion: "Tapas con impresión, troquelado y formado",
+        nombre: "Tapas",
+        descripcion: "Tapas impresas y formadas",
         color: "emerald",
       },
       {
         nombre: "Tapas Troqueladas",
-        descripcion: "Tapas solo troqueladas (sin impresión ni formado)",
+        descripcion: "Tapas solo troqueladas (sin formado)",
         color: "orange",
-      },
-      {
-        nombre: "Etiquetas",
-        descripcion: "Etiquetas impresas y troqueladas",
-        color: "violet",
-      },
-      {
-        nombre: "Cajas Plegadizas",
-        descripcion: "Cajas con impresión, barnizado, troquelado y pegado",
-        color: "sky",
       },
     ])
     .returning();
@@ -277,52 +139,21 @@ async function seed() {
       { etapaNombre: "Impresión", requiereMaquina: true },
       { etapaNombre: "Troquelado", requiereMaquina: true },
       { etapaNombre: "Formado", requiereMaquina: true },
-      { etapaNombre: "Control de Calidad" },
-      { etapaNombre: "Empaque", requiereMaquina: true },
       { etapaNombre: "Tránsito a Bodega" },
       { etapaNombre: "Entrega Cliente" },
     ],
-    "Tapas Impresas": [
+    "Tapas": [
       { etapaNombre: "Llegada Materiales" },
       { etapaNombre: "Impresión", requiereMaquina: true },
-      { etapaNombre: "Barnizado", requiereMaquina: true },
-      { etapaNombre: "Secado" },
       { etapaNombre: "Troquelado", requiereMaquina: true },
       { etapaNombre: "Formado", requiereMaquina: true },
-      { etapaNombre: "Control de Calidad" },
-      { etapaNombre: "Empaque", requiereMaquina: true },
       { etapaNombre: "Tránsito a Bodega" },
       { etapaNombre: "Entrega Cliente" },
     ],
     "Tapas Troqueladas": [
       { etapaNombre: "Llegada Materiales" },
-      { etapaNombre: "Troquelado", nombrePaso: "Troquelado 1", requiereMaquina: true },
-      { etapaNombre: "Descartone", requiereMaquina: true },
-      { etapaNombre: "Troquelado", nombrePaso: "Troquelado 2 (repase)", requiereMaquina: true },
-      { etapaNombre: "Control de Calidad" },
-      { etapaNombre: "Empaque", requiereMaquina: true },
-      { etapaNombre: "Entrega Cliente" },
-    ],
-    "Etiquetas": [
-      { etapaNombre: "Llegada Materiales" },
       { etapaNombre: "Impresión", requiereMaquina: true },
-      { etapaNombre: "Barnizado", requiereMaquina: true },
-      { etapaNombre: "Medio Corte", requiereMaquina: true },
-      { etapaNombre: "Empaque", requiereMaquina: true },
-      { etapaNombre: "Entrega Cliente" },
-    ],
-    "Cajas Plegadizas": [
-      { etapaNombre: "Llegada Materiales" },
-      { etapaNombre: "Impresión", requiereMaquina: true },
-      { etapaNombre: "Barnizado", requiereMaquina: true },
-      { etapaNombre: "Secado" },
       { etapaNombre: "Troquelado", requiereMaquina: true },
-      { etapaNombre: "Descartone", requiereMaquina: true },
-      { etapaNombre: "Pegado", requiereMaquina: true },
-      { etapaNombre: "Doblado", requiereMaquina: true },
-      { etapaNombre: "Control de Calidad" },
-      { etapaNombre: "Empaque", requiereMaquina: true },
-      { etapaNombre: "Paletizado" },
       { etapaNombre: "Tránsito a Bodega" },
       { etapaNombre: "Entrega Cliente" },
     ],
@@ -358,12 +189,6 @@ async function seed() {
       // Formadoras
       { id: "formadora-1", nombre: "Formadora 1", etapaId: etapaMap["Formado"], tipoMetrica: "unidades_min", unidadMetrica: "u/min" },
       { id: "formadora-2", nombre: "Formadora 2", etapaId: etapaMap["Formado"], tipoMetrica: "unidades_min", unidadMetrica: "u/min" },
-      // Barnizadoras
-      { id: "barniz-1", nombre: "Barnizadora 1", etapaId: etapaMap["Barnizado"], tipoMetrica: "metros_min", unidadMetrica: "m/min" },
-      // Empacadoras
-      { id: "empaque-1", nombre: "Empacadora 1", etapaId: etapaMap["Empaque"], tipoMetrica: "unidades_min", unidadMetrica: "u/min" },
-      // Pegadora
-      { id: "pegadora-1", nombre: "Pegadora 1", etapaId: etapaMap["Pegado"], tipoMetrica: "unidades_min", unidadMetrica: "u/min" },
     ])
     .returning();
 

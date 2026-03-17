@@ -1,5 +1,5 @@
 -- ============================================================================
--- RAHUE - Modelo de Base de Datos v1.0
+-- RAHUE - Modelo de Base de Datos v2.0 (Workflows Flexibles)
 -- ============================================================================
 -- Autenticación: Auth0 (externo)
 -- Base de datos: PostgreSQL (Supabase o similar)
@@ -19,20 +19,22 @@ CREATE TABLE etapa (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre          TEXT NOT NULL UNIQUE,
     descripcion     TEXT,
+    categoria       TEXT NOT NULL DEFAULT 'otro'
+                    CHECK (categoria IN ('logistica', 'impresion', 'troquelado', 'formado', 'control_calidad', 'empaque', 'otro')),
     tipo_metrica    TEXT NOT NULL DEFAULT 'logistica'
                     CHECK (tipo_metrica IN ('golpes_min', 'metros_min', 'unidades_min', 'logistica')),
     unidad_display  TEXT,  -- "gpm", "m/min", "u/min", NULL para logística
+    icono           TEXT,  -- nombre de ícono para UI
     orden_default   INT   -- orden sugerido (para UX al crear workflows)
 );
 
--- Datos iniciales de etapas
--- INSERT INTO etapa (nombre, tipo_metrica, unidad_display, orden_default) VALUES
---   ('Llegada Materiales', 'logistica',     NULL,     1),
---   ('Impresión',          'metros_min',    'm/min',  2),
---   ('Troquelado',         'golpes_min',    'gpm',    3),
---   ('Formado',            'unidades_min',  'u/min',  4),
---   ('Tránsito a Bodega',  'logistica',     NULL,     5),
---   ('Entrega Cliente',    'logistica',     NULL,     6);
+-- Catálogo de 19 etapas predefinidas agrupadas por categoría:
+-- Logística (5): Llegada Materiales, Tránsito a Bodega, Entrega Cliente, Tránsito Interno, Almacenamiento Intermedio
+-- Impresión (3): Impresión, Barnizado, Secado
+-- Troquelado (3): Troquelado, Descartone, Medio Corte
+-- Formado (3): Formado, Pegado, Doblado
+-- Control de calidad (2): Control de Calidad, Muestreo
+-- Empaque (3): Empaque, Paletizado, Etiquetado
 
 
 -- Tipo de producto = Workflow.
@@ -48,14 +50,18 @@ CREATE TABLE tipo_producto (
 );
 
 
--- Etapas que componen el workflow de cada tipo de producto (y en qué orden).
+-- Pasos que componen el workflow de cada tipo de producto (y en qué orden).
+-- NOTA: Una misma etapa PUEDE repetirse dentro de un workflow (ej: doble troquelado).
+-- El campo nombre_paso permite diferenciarlas: "Troquelado 1", "Troquelado 2 (repase)".
 CREATE TABLE workflow_etapa (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tipo_producto_id  UUID NOT NULL REFERENCES tipo_producto(id) ON DELETE CASCADE,
     etapa_id          UUID NOT NULL REFERENCES etapa(id) ON DELETE RESTRICT,
     orden             INT NOT NULL,
+    nombre_paso       TEXT,             -- nombre personalizado (NULL = usa nombre de etapa)
+    requiere_maquina  BOOLEAN DEFAULT FALSE,
 
-    UNIQUE(tipo_producto_id, etapa_id),
+    -- NO hay UNIQUE(tipo_producto_id, etapa_id) → una etapa puede repetirse
     UNIQUE(tipo_producto_id, orden)
 );
 
@@ -157,6 +163,7 @@ CREATE TABLE actividad_ot (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ot_id                   UUID NOT NULL REFERENCES ot(id),
     etapa_id                UUID NOT NULL REFERENCES etapa(id),
+    workflow_etapa_id       UUID REFERENCES workflow_etapa(id),  -- paso específico del workflow
     maquina_id              TEXT REFERENCES maquina(id),         -- NULL para etapas logísticas
     operador_id             UUID REFERENCES usuario(id),         -- quién operó
 
@@ -184,7 +191,8 @@ CREATE TABLE actividad_ot (
     -- Orden dentro del workflow (1, 2, 3...)
     orden_etapa             INT,
 
-    UNIQUE(ot_id, etapa_id)  -- una OT pasa una sola vez por cada etapa
+    -- UNIQUE por paso de workflow, NO por etapa (la etapa puede repetirse)
+    UNIQUE(ot_id, workflow_etapa_id)
 );
 
 CREATE INDEX idx_actividad_ot_ot ON actividad_ot(ot_id);

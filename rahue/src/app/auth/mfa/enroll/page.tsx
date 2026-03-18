@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,6 +14,7 @@ export default function MfaEnrollPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -200,7 +201,7 @@ export default function MfaEnrollPage() {
                 )}
 
                 <form onSubmit={handleVerify} className="mt-6 space-y-4">
-                  <div className="flex justify-center gap-2">
+                  <div className="flex justify-center gap-2 cursor-text" onClick={() => codeInputRef.current?.focus()}>
                     {Array.from({ length: 6 }).map((_, i) => (
                       <div
                         key={i}
@@ -217,6 +218,7 @@ export default function MfaEnrollPage() {
                     ))}
                   </div>
                   <input
+                    ref={codeInputRef}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]{6}"

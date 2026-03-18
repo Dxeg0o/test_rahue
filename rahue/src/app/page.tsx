@@ -126,7 +126,7 @@ function HomePageContent() {
   };
 
   return (
-    <div className={isEmbed ? "flex min-h-screen w-full" : "flex"} style={isEmbed ? {} : { minHeight: "calc(100vh - 4rem)" }}>
+    <div className={isEmbed ? "flex min-h-screen w-full" : "flex"} style={isEmbed ? {} : { minHeight: "calc(100vh - 3.5rem)" }}>
       {/* Sidebar (hidden in embed mode) */}
       {!isEmbed && (
         <ManagementSidebar activeSection={activeSection} onSectionChange={setActiveSection} userRol={userRol} />
@@ -143,7 +143,7 @@ function HomePageContent() {
         ) : (
     <main className={isEmbed
       ? "flex min-h-screen w-full flex-col"
-      : "mx-auto flex min-h-[calc(100vh-4rem)] max-w-full flex-col gap-8 px-8 py-8"
+      : "mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-full flex-col gap-8 px-8 py-8"
     }>
 
       {/* Header (hidden in embed mode) */}

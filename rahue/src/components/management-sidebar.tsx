@@ -120,46 +120,43 @@ export function ManagementSidebar({ activeSection, onSectionChange, userRol }: P
   return (
     <aside
       className={`
-        flex flex-col shrink-0 bg-white border-r border-slate-200
+        flex flex-col shrink-0 bg-slate-900
         transition-all duration-300 ease-in-out overflow-hidden
-        ${collapsed ? "w-[60px]" : "w-[220px]"}
+        ${collapsed ? "w-[60px]" : "w-[230px]"}
       `}
-      style={{ minHeight: "calc(100vh - 4rem)" }}
+      style={{ minHeight: "calc(100vh - 3.5rem)" }}
     >
-      {/* Header / Collapse toggle */}
+      {/* Collapse toggle */}
       <div
-        className={`flex h-14 items-center border-b border-slate-100 ${
-          collapsed ? "justify-center" : "justify-between px-4"
+        className={`flex h-12 items-center ${
+          collapsed ? "justify-center" : "justify-end px-3"
         }`}
       >
-        {!collapsed && (
-          <img src="/logo-completo.svg" alt="Rahue" className="h-7" />
-        )}
         <button
           onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-white/30 hover:bg-white/8 hover:text-white/60 transition-colors"
         >
           <IconChevron flipped={collapsed} />
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-3">
         {visibleGroups.map((group, gi) => (
-          <div key={group.group} className={gi > 0 ? "mt-4" : ""}>
+          <div key={group.group} className={gi > 0 ? "mt-5" : ""}>
             {/* Group label */}
             {!collapsed && (
-              <p className="mb-1 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400 select-none">
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/25 select-none">
                 {group.group}
               </p>
             )}
             {collapsed && gi > 0 && (
-              <div className="mx-3 my-2 h-px bg-slate-100" />
+              <div className="mx-3 my-2 h-px bg-white/8" />
             )}
 
             {/* Items */}
-            <ul className="space-y-0.5 px-2">
+            <ul className="space-y-0.5">
               {group.items.map((item) => {
                 const isActive = activeSection === item.id;
                 return (
@@ -172,8 +169,8 @@ export function ManagementSidebar({ activeSection, onSectionChange, userRol }: P
                         ${collapsed ? "h-10 w-10 justify-center mx-auto px-0" : "gap-3 px-3 py-2.5"}
                         ${
                           isActive
-                            ? "bg-slate-900 text-white shadow-sm"
-                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                            ? "bg-white/12 text-white"
+                            : "text-white/50 hover:bg-white/6 hover:text-white/80"
                         }
                       `}
                     >
@@ -182,7 +179,7 @@ export function ManagementSidebar({ activeSection, onSectionChange, userRol }: P
                         className={`shrink-0 transition-colors ${
                           isActive
                             ? "text-white"
-                            : "text-slate-400 group-hover:text-slate-600"
+                            : "text-white/35 group-hover:text-white/60"
                         }`}
                       >
                         {item.icon}
@@ -205,7 +202,7 @@ export function ManagementSidebar({ activeSection, onSectionChange, userRol }: P
                           </div>
                           <p
                             className={`truncate text-[11px] leading-tight mt-0.5 ${
-                              isActive ? "text-slate-400" : "text-slate-400"
+                              isActive ? "text-white/40" : "text-white/25"
                             }`}
                           >
                             {item.description}
@@ -223,8 +220,8 @@ export function ManagementSidebar({ activeSection, onSectionChange, userRol }: P
 
       {/* Footer */}
       {!collapsed && (
-        <div className="border-t border-slate-100 px-4 py-3">
-          <p className="text-[10px] text-slate-400">Sistema de Gestión v1.0</p>
+        <div className="border-t border-white/8 px-4 py-3">
+          <p className="text-[10px] text-white/20">Rahue v1.0</p>
         </div>
       )}
     </aside>

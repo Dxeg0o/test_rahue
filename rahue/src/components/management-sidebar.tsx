@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 
-export type ManagementSection = "planta" | "ots" | "workflows";
+export type ManagementSection = "planta" | "ots" | "workflows" | "usuarios";
 
 interface Props {
   activeSection: ManagementSection;
   onSectionChange: (section: ManagementSection) => void;
+  userRol?: "admin" | "supervisor" | "operador" | null;
 }
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -36,6 +37,15 @@ const IconWorkflows = () => (
     <rect x="2" y="17" width="6" height="5" rx="1" />
     <rect x="16" y="17" width="6" height="5" rx="1" />
     <path d="M8 5.5h8M12 8v2M5 12v5M19 12v5M12 15v2" />
+  </svg>
+);
+
+const IconUsuarios = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
@@ -83,12 +93,29 @@ const NAV_GROUPS = [
       },
     ],
   },
+  {
+    group: "Administración",
+    items: [
+      {
+        id: "usuarios" as ManagementSection,
+        label: "Usuarios",
+        description: "Roles y acceso",
+        icon: <IconUsuarios />,
+        badge: null,
+      },
+    ],
+  },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ManagementSidebar({ activeSection, onSectionChange }: Props) {
+export function ManagementSidebar({ activeSection, onSectionChange, userRol }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+
+  const visibleGroups = NAV_GROUPS.filter((group) => {
+    if (group.group === "Administración") return userRol === "admin";
+    return true;
+  });
 
   return (
     <aside
@@ -121,7 +148,7 @@ export function ManagementSidebar({ activeSection, onSectionChange }: Props) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3">
-        {NAV_GROUPS.map((group, gi) => (
+        {visibleGroups.map((group, gi) => (
           <div key={group.group} className={gi > 0 ? "mt-4" : ""}>
             {/* Group label */}
             {!collapsed && (

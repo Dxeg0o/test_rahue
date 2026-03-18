@@ -22,6 +22,7 @@ import { ProcessCard } from "@/components/process-card";
 import { ManagementSidebar, ManagementSection } from "@/components/management-sidebar";
 import { GestionOtsView } from "@/components/gestion-ots-view";
 import { GestionWorkflowsView } from "@/components/gestion-workflows-view";
+import { GestionUsuariosView } from "@/components/gestion-usuarios-view";
 
 // Mock data removed in favor of DemoContext
 export default function HomePage() {
@@ -64,6 +65,14 @@ function HomePageContent() {
 
   // Sidebar section state
   const [activeSection, setActiveSection] = useState<ManagementSection>("planta");
+  const [userRol, setUserRol] = useState<"admin" | "supervisor" | "operador" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => setUserRol(data.rol ?? null))
+      .catch(() => {});
+  }, []);
 
   // High-level Tabs: "View Mode"
   const [activeView, setActiveView] = useState<"live" | "history" | "workers">("live");
@@ -120,7 +129,7 @@ function HomePageContent() {
     <div className={isEmbed ? "flex min-h-screen w-full" : "flex"} style={isEmbed ? {} : { minHeight: "calc(100vh - 4rem)" }}>
       {/* Sidebar (hidden in embed mode) */}
       {!isEmbed && (
-        <ManagementSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+        <ManagementSidebar activeSection={activeSection} onSectionChange={setActiveSection} userRol={userRol} />
       )}
 
       {/* Right panel: section content */}
@@ -129,6 +138,8 @@ function HomePageContent() {
           <GestionOtsView />
         ) : !isEmbed && activeSection === "workflows" ? (
           <GestionWorkflowsView />
+        ) : !isEmbed && activeSection === "usuarios" ? (
+          <GestionUsuariosView />
         ) : (
     <main className={isEmbed
       ? "flex min-h-screen w-full flex-col"

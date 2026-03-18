@@ -128,14 +128,12 @@ export function ManagementSidebar({ activeSection, onSectionChange, userRol }: P
     >
       {/* Header / Collapse toggle */}
       <div
-        className={`flex h-12 items-center border-b border-slate-100 ${
+        className={`flex h-14 items-center border-b border-slate-100 ${
           collapsed ? "justify-center" : "justify-between px-4"
         }`}
       >
         {!collapsed && (
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Menú
-          </span>
+          <img src="/logo-completo.svg" alt="Rahue" className="h-7" />
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
@@ -226,7 +224,7 @@ export function ManagementSidebar({ activeSection, onSectionChange, userRol }: P
       {/* Footer */}
       {!collapsed && (
         <div className="border-t border-slate-100 px-4 py-3">
-          <p className="text-[10px] text-slate-400">Sistema RAHUE v1.0</p>
+          <p className="text-[10px] text-slate-400">Sistema de Gestión v1.0</p>
         </div>
       )}
     </aside>

@@ -30,7 +30,7 @@ function LoginPageContent() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-end pr-16 bg-cover bg-center"
+      className="relative min-h-screen flex items-center justify-center bg-cover bg-center"
       style={{ backgroundImage: "url('/login-bg.jpeg')" }}
     >
       {/* Overlay oscuro sutil a la izquierda, transparente a la derecha */}
@@ -40,13 +40,16 @@ function LoginPageContent() {
       <div className="relative z-10 w-full max-w-sm bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 shadow-2xl p-10">
         {/* Logo / título */}
         <div className="mb-8">
-          <p className="text-white/60 text-sm font-medium tracking-widest uppercase mb-1">
+          <img
+            src="/logo-completo.svg"
+            alt="Rahue"
+            className="h-10 mb-3"
+            style={{ filter: "brightness(0) invert(1)" }}
+          />
+          <p className="text-white/50 text-sm font-medium tracking-widest uppercase">
             Sistema de Gestión
           </p>
-          <h1 className="text-4xl font-bold text-white leading-tight">
-            Rahue
-          </h1>
-          <p className="text-white/50 text-sm mt-2">
+          <p className="text-white/40 text-xs mt-1">
             Inicia sesión para continuar
           </p>
         </div>
@@ -72,9 +75,11 @@ function LoginPageContent() {
           {googleLoading ? "Redirigiendo..." : "Continuar con Google"}
         </button>
 
-        <p className="mt-6 text-center text-xs text-white/30">
-          Solo usuarios autorizados pueden acceder.
-        </p>
+        <div className="mt-8 pt-6 border-t border-white/10">
+          <p className="text-center text-xs text-white/40">
+            Solo usuarios autorizados pueden acceder.
+          </p>
+        </div>
       </div>
     </div>
   );

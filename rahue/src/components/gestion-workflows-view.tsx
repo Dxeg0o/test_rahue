@@ -501,7 +501,7 @@ function WorkflowCard({
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
               Máquinas: <strong className="text-slate-700">
-                {wf.stages.filter(s => s.requiereMaquina || ["impresion", "troquelado", "formado"].includes(s.categoria)).map(s => s.nombre).join(", ") || "—"}
+                {wf.stages.filter(s => s.requiereMaquina || s.categoria === "maquina").map(s => s.nombre).join(", ") || "—"}
               </strong>
             </span>
           </div>

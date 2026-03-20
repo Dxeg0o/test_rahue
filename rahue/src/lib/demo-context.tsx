@@ -15,7 +15,7 @@ export interface Stop {
     reason: string;
 }
 
-export type ProductStage = "Llegada Materiales" | "Impresión" | "Troquelado" | "Formado" | "Tránsito a Bodega" | "Entrega Cliente";
+export type ProductStage = string;
 
 export const STANDARD_FLOW: ProductStage[] = [
     "Llegada Materiales", "Impresión", "Troquelado", "Formado", "Tránsito a Bodega", "Entrega Cliente"
@@ -118,6 +118,7 @@ interface DemoContextType {
   machines: MachineState[];
   pendingOts: PendingOT[];
   plantStats: PlantStats;
+  stageCategories: Record<string, string>;
   step: DemoStep;
   setStep: (step: DemoStep) => void;
   startMachineOrder: (machineId: string, ot: string, rut: string, outputs: number, target: number) => void;
@@ -175,6 +176,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [machines, setMachines] = useState<MachineState[]>([]);
   const [pendingOts, setPendingOts] = useState<PendingOT[]>([]);
   const [plantStats, setPlantStats] = useState<PlantStats>({ completedToday: 0, completedWeek: 0 });
+  const [stageCategories, setStageCategories] = useState<Record<string, string>>({});
   const [step, setStep] = useState<DemoStep>("INTRO");
   const [loaded, setLoaded] = useState(false);
 
@@ -189,6 +191,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       );
       if (data.pendingOts) setPendingOts(data.pendingOts);
       if (data.stats) setPlantStats(data.stats);
+      if (data.stageCategories) setStageCategories(data.stageCategories);
       setLoaded(true);
     } catch (e) {
       console.warn("Error fetching plant data:", e);
@@ -336,6 +339,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         machines,
         pendingOts,
         plantStats,
+        stageCategories,
         step,
         setStep,
         startMachineOrder,

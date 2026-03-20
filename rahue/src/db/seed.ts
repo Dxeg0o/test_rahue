@@ -2,6 +2,7 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
+  categoria,
   etapa,
   tipoProducto,
   workflowEtapa,
@@ -62,18 +63,29 @@ async function seed() {
   await db.delete(maquina);
   await db.delete(tipoProducto);
   await db.delete(etapa);
+  await db.delete(categoria);
   await db.delete(usuario);
   console.log("     ✅ Limpio\n");
+
+  // ── 0.5. Categorías ──────────────────────────────────────────────────
+  console.log("  📂 Categorías...");
+  const categorias = await db.insert(categoria).values([
+    { nombre: "proceso", descripcion: "Todo flujo de materiales o sub-procesos manuales" },
+    { nombre: "maquina", descripcion: "Procesos que suceden físicamente en una máquina productiva" },
+    { nombre: "movimiento", descripcion: "Transacciones e hitos logísticos como despachos" },
+  ]).returning();
+  const C = Object.fromEntries(categorias.map((c) => [c.nombre, c.id]));
+  console.log(`     ✅ ${categorias.length} categorías\n`);
 
   // ── 1. Etapas ────────────────────────────────────────────────────────
   console.log("  📋 Etapas...");
   const etapas = await db.insert(etapa).values([
-    { nombre: "Llegada Materiales",  categoria: "logistica",  tipoMetrica: "logistica",    icono: "truck",         descripcion: "Recepción e inspección de materia prima" },
-    { nombre: "Impresión",           categoria: "impresion",  tipoMetrica: "metros_min",   unidadDisplay: "m/min", icono: "printer",       descripcion: "Impresión sobre material plano" },
-    { nombre: "Troquelado",          categoria: "troquelado", tipoMetrica: "golpes_min",   unidadDisplay: "gpm",   icono: "scissors",      descripcion: "Corte con troquel (golpes por minuto)" },
-    { nombre: "Formado",             categoria: "formado",    tipoMetrica: "unidades_min", unidadDisplay: "u/min", icono: "box",           descripcion: "Formación del producto final" },
-    { nombre: "Tránsito a Bodega",   categoria: "logistica",  tipoMetrica: "logistica",    icono: "warehouse",     descripcion: "Traslado de producto terminado a bodega" },
-    { nombre: "Entrega Cliente",     categoria: "logistica",  tipoMetrica: "logistica",    icono: "package-check", descripcion: "Despacho al cliente final" },
+    { nombre: "Llegada Materiales",  categoriaId: C["proceso"],  tipoMetrica: "logistica",    icono: "truck",         descripcion: "Recepción e inspección de materia prima" },
+    { nombre: "Impresión",           categoriaId: C["maquina"],  tipoMetrica: "metros_min",   unidadDisplay: "m/min", icono: "printer",       descripcion: "Impresión sobre material plano" },
+    { nombre: "Troquelado",          categoriaId: C["maquina"],  tipoMetrica: "golpes_min",   unidadDisplay: "gpm",   icono: "scissors",      descripcion: "Corte con troquel (golpes por minuto)" },
+    { nombre: "Formado",             categoriaId: C["maquina"],  tipoMetrica: "unidades_min", unidadDisplay: "u/min", icono: "box",           descripcion: "Formación del producto final" },
+    { nombre: "Tránsito a Bodega",   categoriaId: C["movimiento"],tipoMetrica: "logistica",    icono: "warehouse",     descripcion: "Traslado de producto terminado a bodega" },
+    { nombre: "Entrega Cliente",     categoriaId: C["movimiento"],tipoMetrica: "logistica",    icono: "package-check", descripcion: "Despacho al cliente final" },
   ]).returning();
   const E = Object.fromEntries(etapas.map((e) => [e.nombre, e]));
   console.log(`     ✅ ${etapas.length} etapas\n`);

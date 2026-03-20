@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useDemo, MachineState, ProductStage, DemoStageDetail, Stop } from "@/lib/demo-context";
@@ -80,7 +80,7 @@ interface ActiveOtsProps {
 }
 
 export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsProps) {
-  const { machines } = useDemo();
+  const { machines, stageCategories } = useDemo();
   const [search, setSearch] = useState("");
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(initialSelectedId ?? null);
   const [expandedStage, setExpandedStage] = useState<number | null>(null);
@@ -107,7 +107,7 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
   });
 
   const selectedMachine = activeMachines.find(m => m.id === selectedMachineId);
-  const MACHINE_STAGES = ["Impresión", "Troquelado", "Formado"];
+  const MACHINE_STAGES = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "maquina"), [stageCategories]);
 
   const getProgress = (current: number, target?: number) => {
       if (!target || target === 0) return 0;

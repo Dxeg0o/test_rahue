@@ -16,17 +16,21 @@ import { relations, sql } from "drizzle-orm";
 // CAPA 1: CATÁLOGOS
 // ============================================================================
 
+export const categoria = pgTable("categoria", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  nombre: text("nombre").notNull().unique(),
+  descripcion: text("descripcion"),
+});
+
 // Etapa = bloque reutilizable. NO tiene orden propio.
 // El orden lo define workflow_etapa.orden dentro de cada workflow.
 export const etapa = pgTable("etapa", {
   id: uuid("id").primaryKey().defaultRandom(),
   nombre: text("nombre").notNull().unique(),
   descripcion: text("descripcion"),
-  categoria: text("categoria", {
-    enum: ["logistica", "impresion", "troquelado", "formado", "control_calidad", "empaque", "otro"],
-  })
+  categoriaId: uuid("categoria_id")
     .notNull()
-    .default("otro"), // para agrupar en el UI al armar workflows
+    .references(() => categoria.id),
   tipoMetrica: text("tipo_metrica", {
     enum: ["golpes_min", "metros_min", "unidades_min", "logistica"],
   })
@@ -300,7 +304,15 @@ export const escaneoBarras = pgTable("escaneo_barras", {
 // RELACIONES (para queries con .with())
 // ============================================================================
 
-export const etapaRelations = relations(etapa, ({ many }) => ({
+export const categoriaRelations = relations(categoria, ({ many }) => ({
+  etapas: many(etapa),
+}));
+
+export const etapaRelations = relations(etapa, ({ one, many }) => ({
+  categoria: one(categoria, {
+    fields: [etapa.categoriaId],
+    references: [categoria.id],
+  }),
   maquinas: many(maquina),
   workflowEtapas: many(workflowEtapa),
   actividades: many(actividadOt),

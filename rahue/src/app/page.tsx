@@ -34,13 +34,13 @@ export default function HomePage() {
 }
 
 function HomePageContent() {
-  const { machines } = useDemo();
+  const { machines, stageCategories } = useDemo();
   const searchParams = useSearchParams();
   const isEmbed = searchParams.get("embed") === "true";
 
-  const MACHINE_AREAS = ["Impresión", "Troquelado", "Formado"];
-  const PROCESOS_AREAS = ["Llegada Materiales"];
-  const MOVIMIENTOS_AREAS = ["Tránsito a Bodega", "Entrega Cliente"];
+  const MACHINE_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "maquina"), [stageCategories]);
+  const PROCESOS_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "proceso"), [stageCategories]);
+  const MOVIMIENTOS_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "movimiento"), [stageCategories]);
 
   const activeProcesos = machines.filter(m => PROCESOS_AREAS.includes(m.area as string) && m.order !== null).map(m => ({
       id: m.order!.id,
@@ -478,7 +478,7 @@ function HomePageContent() {
 
                             {expandedColumn === "maquinas" && (
                                 <div className="space-y-6">
-                                    {["Impresión", "Troquelado", "Formado"].map(area => {
+                                    {MACHINE_AREAS.map(area => {
                                         const areaMachines = machines.filter(m => m.area === area);
                                         if (areaMachines.length === 0) return null;
                                         const isExpanded = expandedAreas.has(area);
@@ -544,7 +544,7 @@ function HomePageContent() {
 
                             {expandedColumn === "procesos" && (
                                 <div className="space-y-6">
-                                    {["Llegada Materiales", "Preparación"].map(stageName => {
+                                    {PROCESOS_AREAS.map(stageName => {
                                         const groupItems = activeProcesos.filter(item => item.stageName === stageName);
                                         if (groupItems.length === 0) return null;
                                         const actsCount = groupItems.filter(i => i.status === "IN_PROGRESS").length;
@@ -578,7 +578,7 @@ function HomePageContent() {
 
                             {expandedColumn === "movimientos" && (
                                 <div className="space-y-6">
-                                    {["Tránsito a Bodega", "Entrega Cliente"].map(stageName => {
+                                    {MOVIMIENTOS_AREAS.map(stageName => {
                                         const groupItems = activeMovimientos.filter(item => item.stageName === stageName);
                                         if (groupItems.length === 0) return null;
                                         const actsCount = groupItems.filter(i => i.status === "IN_PROGRESS").length;

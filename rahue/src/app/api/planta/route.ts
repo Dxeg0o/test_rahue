@@ -140,6 +140,18 @@ export async function GET() {
     ).length;
     const completedWeek = completedOts.length;
 
+    // 9. Stage Categories map for dynamic UI rendering
+    const etapasRows = await db.query.etapa.findMany({
+      with: { categoria: true }
+    });
+    
+    const stageCategories: Record<string, string> = {};
+    for (const e of etapasRows) {
+      if (e.categoria) {
+         stageCategories[e.nombre] = e.categoria.nombre;
+      }
+    }
+
     return NextResponse.json(
       {
         machines: result,
@@ -152,6 +164,7 @@ export async function GET() {
           outputs: 1,
         })),
         stats: { completedToday, completedWeek },
+        stageCategories,
       },
       { headers: { "Cache-Control": "no-store" } }
     );
@@ -247,23 +260,31 @@ function buildMachineState(
   // Stops on current activity
   const stops: Stop[] = (act.paradas ?? []).map(buildStopFromParada);
 
-  // Build order
+  // Build order — flow comes from the CURRENT workflow definition.
   const flow: ProductStage[] = otData.tipoProducto.workflowEtapas.map(
     (we) => we.etapa.nombre as ProductStage
   );
 
-  // Stage timestamps from ALL activities of this OT
+  // Only include stages that are still part of the current workflow.
+  // If a stage was removed from the workflow after the OT was created,
+  // its activities still exist in the DB but should not be shown.
+  const currentEtapaIds = new Set(
+    otData.tipoProducto.workflowEtapas.map((we) => we.etapaId)
+  );
+
+  // Stage timestamps — only for stages in the current workflow
   const stageTimestamps: Record<string, StageTimestamps> = {};
   for (const a of otData.actividades) {
+    if (!currentEtapaIds.has(a.etapaId)) continue;
     stageTimestamps[a.etapa.nombre] = {
       start: new Date(a.horaInicio),
       ...(a.horaTermino ? { end: new Date(a.horaTermino) } : {}),
     };
   }
 
-  // Stages detail (completed past stages, not current)
+  // Stages detail — completed past stages, only from the current workflow
   const stagesDetail: DemoStageDetail[] = otData.actividades
-    .filter((a) => a.estado === "completada" && a.id !== act.id)
+    .filter((a) => a.estado === "completada" && a.id !== act.id && currentEtapaIds.has(a.etapaId))
     .map((a) => ({
       stageName: a.etapa.nombre,
       machineName: a.maquina?.nombre || "Logística",

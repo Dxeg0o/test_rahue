@@ -18,7 +18,7 @@ export async function GET() {
       where: (tp) => eq(tp.activo, true),
       with: {
         workflowEtapas: {
-          with: { etapa: true },
+          with: { etapa: { with: { categoria: true } } },
           orderBy: (we, { asc }) => [asc(we.orden)],
         },
       },
@@ -98,7 +98,7 @@ export async function GET() {
           orden: we.orden,
           requiereMaquina: we.requiereMaquina ?? false,
           icono: we.etapa.icono,
-          categoria: we.etapa.categoria,
+          categoria: we.etapa.categoria?.nombre || "otro",
         })),
         ...stats,
       };

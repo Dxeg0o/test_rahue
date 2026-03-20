@@ -34,13 +34,13 @@ export default function HomePage() {
 }
 
 function HomePageContent() {
-  const { machines } = useDemo();
+  const { machines, stageCategories } = useDemo();
   const searchParams = useSearchParams();
   const isEmbed = searchParams.get("embed") === "true";
 
-  const MACHINE_AREAS = ["Impresión", "Troquelado", "Formado"];
-  const PROCESOS_AREAS = ["Llegada Materiales"];
-  const MOVIMIENTOS_AREAS = ["Tránsito a Bodega", "Entrega Cliente"];
+  const MACHINE_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "maquina"), [stageCategories]);
+  const PROCESOS_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "proceso"), [stageCategories]);
+  const MOVIMIENTOS_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "movimiento"), [stageCategories]);
 
   const activeProcesos = machines.filter(m => PROCESOS_AREAS.includes(m.area as string) && m.order !== null).map(m => ({
       id: m.order!.id,
@@ -65,12 +65,18 @@ function HomePageContent() {
 
   // Sidebar section state
   const [activeSection, setActiveSection] = useState<ManagementSection>("planta");
-  const [userRol, setUserRol] = useState<"admin" | "supervisor" | "operador" | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    nombre: string;
+    email: string | null;
+    rut: string | null;
+    rol: "admin" | "supervisor" | "operador";
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/me")
-      .then((r) => r.json())
-      .then((data) => setUserRol(data.rol ?? null))
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.rol) setCurrentUser(data); })
       .catch(() => {});
   }, []);
 
@@ -129,7 +135,7 @@ function HomePageContent() {
     <div className={isEmbed ? "flex min-h-screen w-full" : "flex"} style={isEmbed ? {} : { minHeight: "calc(100vh - 3.5rem)" }}>
       {/* Sidebar (hidden in embed mode) */}
       {!isEmbed && (
-        <ManagementSidebar activeSection={activeSection} onSectionChange={setActiveSection} userRol={userRol} />
+        <ManagementSidebar activeSection={activeSection} onSectionChange={setActiveSection} userRol={currentUser?.rol ?? null} currentUser={currentUser} />
       )}
 
       {/* Right panel: section content */}
@@ -472,7 +478,7 @@ function HomePageContent() {
 
                             {expandedColumn === "maquinas" && (
                                 <div className="space-y-6">
-                                    {["Impresión", "Troquelado", "Formado"].map(area => {
+                                    {MACHINE_AREAS.map(area => {
                                         const areaMachines = machines.filter(m => m.area === area);
                                         if (areaMachines.length === 0) return null;
                                         const isExpanded = expandedAreas.has(area);
@@ -538,7 +544,7 @@ function HomePageContent() {
 
                             {expandedColumn === "procesos" && (
                                 <div className="space-y-6">
-                                    {["Llegada Materiales", "Preparación"].map(stageName => {
+                                    {PROCESOS_AREAS.map(stageName => {
                                         const groupItems = activeProcesos.filter(item => item.stageName === stageName);
                                         if (groupItems.length === 0) return null;
                                         const actsCount = groupItems.filter(i => i.status === "IN_PROGRESS").length;
@@ -572,7 +578,7 @@ function HomePageContent() {
 
                             {expandedColumn === "movimientos" && (
                                 <div className="space-y-6">
-                                    {["Tránsito a Bodega", "Entrega Cliente"].map(stageName => {
+                                    {MOVIMIENTOS_AREAS.map(stageName => {
                                         const groupItems = activeMovimientos.filter(item => item.stageName === stageName);
                                         if (groupItems.length === 0) return null;
                                         const actsCount = groupItems.filter(i => i.status === "IN_PROGRESS").length;

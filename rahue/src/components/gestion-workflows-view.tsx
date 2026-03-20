@@ -1,16 +1,36 @@
 "use client";
 
-import { useState } from "react";
-import { ProductStage } from "@/lib/demo-context";
+import { useState, useEffect, useCallback } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface WorkflowDef {
+interface EtapaDB {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  categoria: string;
+  tipoMetrica: string;
+  unidadDisplay: string | null;
+  icono: string | null;
+}
+
+interface WorkflowStageDB {
+  id: string;
+  etapaId: string;
+  nombre: string;
+  etapaNombre: string;
+  orden: number;
+  requiereMaquina: boolean;
+  icono: string | null;
+  categoria: string;
+}
+
+interface WorkflowDef {
   id: string;
   name: string;
   description: string;
   colorKey: ColorKey;
-  stages: ProductStage[];
+  stages: WorkflowStageDB[];
   activeOTs: number;
   completedThisWeek: number;
   avgCycleHours: number;
@@ -32,134 +52,73 @@ const COLOR_MAP: Record<ColorKey, {
   amber:   { bg: "bg-amber-50",   border: "border-amber-200",   badge: "bg-amber-100",   badgeText: "text-amber-700",   dot: "bg-amber-400",   swatch: "bg-amber-400"   },
 };
 
-// ─── Available stages ─────────────────────────────────────────────────────────
+// ─── Stage icons ──────────────────────────────────────────────────────────────
 
-const ALL_STAGES: { id: ProductStage; label: string; icon: React.ReactNode }[] = [
-  {
-    id: "Llegada Materiales",
-    label: "Llegada Materiales",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="3" width="15" height="13" rx="1" /><path d="M16 8h4l3 3v5h-7V8z" />
-        <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-      </svg>
-    ),
-  },
-  {
-    id: "Impresión",
-    label: "Impresión",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="6 9 6 2 18 2 18 9" />
-        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-        <rect x="6" y="14" width="12" height="8" />
-      </svg>
-    ),
-  },
-  {
-    id: "Troquelado",
-    label: "Troquelado",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-      </svg>
-    ),
-  },
-  {
-    id: "Formado",
-    label: "Formado",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      </svg>
-    ),
-  },
-  {
-    id: "Tránsito a Bodega",
-    label: "Tránsito a Bodega",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" />
-        <rect x="9" y="11" width="14" height="10" rx="2" />
-        <circle cx="12" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-      </svg>
-    ),
-  },
-  {
-    id: "Entrega Cliente",
-    label: "Entrega Cliente",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-        <polyline points="22 4 12 14.01 9 11.01" />
-      </svg>
-    ),
-  },
-];
+const STAGE_ICONS: Record<string, React.ReactNode> = {
+  truck: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="3" width="15" height="13" rx="1" /><path d="M16 8h4l3 3v5h-7V8z" />
+      <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+    </svg>
+  ),
+  printer: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <rect x="6" y="14" width="12" height="8" />
+    </svg>
+  ),
+  scissors: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  ),
+  box: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    </svg>
+  ),
+  warehouse: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" />
+      <rect x="9" y="11" width="14" height="10" rx="2" />
+      <circle cx="12" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+    </svg>
+  ),
+  "package-check": (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+};
 
-// ─── Initial data ─────────────────────────────────────────────────────────────
-
-const INITIAL_WORKFLOWS: WorkflowDef[] = [
-  {
-    id: "cono",
-    name: "Cono",
-    description: "Proceso completo de fabricación de conos con todas las etapas productivas.",
-    colorKey: "indigo",
-    stages: ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Tránsito a Bodega", "Entrega Cliente"],
-    activeOTs: 2, completedThisWeek: 12, avgCycleHours: 18,
-  },
-  {
-    id: "tapas",
-    name: "Tapas",
-    description: "Línea de producción estándar de tapas con ciclo completo.",
-    colorKey: "emerald",
-    stages: ["Llegada Materiales", "Impresión", "Troquelado", "Formado", "Tránsito a Bodega", "Entrega Cliente"],
-    activeOTs: 1, completedThisWeek: 8, avgCycleHours: 16,
-  },
-  {
-    id: "tapas-troqueladas",
-    name: "Tapas Troqueladas",
-    description: "Flujo simplificado sin etapa de formado, directo a bodega tras troquelado.",
-    colorKey: "orange",
-    stages: ["Llegada Materiales", "Impresión", "Troquelado", "Tránsito a Bodega", "Entrega Cliente"],
-    activeOTs: 0, completedThisWeek: 5, avgCycleHours: 12,
-  },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function uid() {
-  return Math.random().toString(36).slice(2, 9);
-}
-
-function stageInfo(id: ProductStage) {
-  return ALL_STAGES.find((s) => s.id === id)!;
+function getStageIcon(icono: string | null | undefined): React.ReactNode {
+  if (!icono) return null;
+  return STAGE_ICONS[icono] ?? null;
 }
 
 // ─── Flow preview (mini) ──────────────────────────────────────────────────────
 
-function FlowPreview({ stages, small }: { stages: ProductStage[]; small?: boolean }) {
+function FlowPreview({ stages, small }: { stages: WorkflowStageDB[]; small?: boolean }) {
   if (stages.length === 0)
     return <p className="text-xs text-slate-400 italic">Sin etapas configuradas</p>;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {stages.map((s, i) => {
-        const info = stageInfo(s);
-        return (
-          <div key={s} className="flex items-center gap-1.5">
-            <div className={`flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-700 shadow-sm ${small ? "text-[11px]" : "text-xs font-medium"}`}>
-              <span className="text-slate-400">{info?.icon}</span>
-              {s}
-            </div>
-            {i < stages.length - 1 && (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-300">
-                <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
-              </svg>
-            )}
+      {stages.map((s, i) => (
+        <div key={`${s.etapaId}-${i}`} className="flex items-center gap-1.5">
+          <div className={`flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-700 shadow-sm ${small ? "text-[11px]" : "text-xs font-medium"}`}>
+            <span className="text-slate-400">{getStageIcon(s.icono)}</span>
+            {s.nombre}
           </div>
-        );
-      })}
+          {i < stages.length - 1 && (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-300">
+              <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+            </svg>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -168,29 +127,35 @@ function FlowPreview({ stages, small }: { stages: ProductStage[]; small?: boolea
 
 interface ModalProps {
   workflow?: WorkflowDef;
-  onSave: (wf: WorkflowDef) => void;
+  etapas: EtapaDB[];
+  saving: boolean;
+  onSave: (data: { name: string; description: string; colorKey: ColorKey; stages: { etapaId: string; nombrePaso?: string; requiereMaquina?: boolean }[] }) => void;
   onClose: () => void;
 }
 
-function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
+function WorkflowModal({ workflow, etapas, saving, onSave, onClose }: ModalProps) {
   const isEdit = !!workflow;
   const [name, setName] = useState(workflow?.name ?? "");
   const [description, setDescription] = useState(workflow?.description ?? "");
   const [colorKey, setColorKey] = useState<ColorKey>(workflow?.colorKey ?? "indigo");
-  const [stages, setStages] = useState<ProductStage[]>(workflow?.stages ?? []);
+  const [selectedStages, setSelectedStages] = useState<{ etapaId: string; nombre: string; icono: string | null }[]>(
+    workflow?.stages.map((s) => ({ etapaId: s.etapaId, nombre: s.etapaNombre, icono: s.icono })) ?? []
+  );
   const [error, setError] = useState("");
 
-  const addStage = (s: ProductStage) => {
-    if (!stages.includes(s)) setStages((prev) => [...prev, s]);
+  const addStage = (etapa: EtapaDB) => {
+    if (!selectedStages.some((s) => s.etapaId === etapa.id)) {
+      setSelectedStages((prev) => [...prev, { etapaId: etapa.id, nombre: etapa.nombre, icono: etapa.icono }]);
+    }
   };
 
   const removeStage = (i: number) => {
-    setStages((prev) => prev.filter((_, idx) => idx !== i));
+    setSelectedStages((prev) => prev.filter((_, idx) => idx !== i));
   };
 
   const moveUp = (i: number) => {
     if (i === 0) return;
-    setStages((prev) => {
+    setSelectedStages((prev) => {
       const next = [...prev];
       [next[i - 1], next[i]] = [next[i], next[i - 1]];
       return next;
@@ -198,8 +163,8 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
   };
 
   const moveDown = (i: number) => {
-    if (i === stages.length - 1) return;
-    setStages((prev) => {
+    if (i === selectedStages.length - 1) return;
+    setSelectedStages((prev) => {
       const next = [...prev];
       [next[i], next[i + 1]] = [next[i + 1], next[i]];
       return next;
@@ -208,27 +173,21 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
 
   const handleSave = () => {
     if (!name.trim()) { setError("El nombre es obligatorio."); return; }
-    if (stages.length < 2) { setError("Agrega al menos 2 etapas."); return; }
+    if (selectedStages.length < 2) { setError("Agrega al menos 2 etapas."); return; }
     onSave({
-      id: workflow?.id ?? uid(),
       name: name.trim(),
       description: description.trim(),
       colorKey,
-      stages,
-      activeOTs: workflow?.activeOTs ?? 0,
-      completedThisWeek: workflow?.completedThisWeek ?? 0,
-      avgCycleHours: workflow?.avgCycleHours ?? 0,
+      stages: selectedStages.map((s) => ({ etapaId: s.etapaId })),
     });
   };
 
   const colors: ColorKey[] = ["indigo", "emerald", "orange", "rose", "violet", "sky", "amber"];
 
   return (
-    /* backdrop */
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Panel */}
       <div className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-900/10">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-7 py-5">
@@ -247,10 +206,8 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
           </button>
         </div>
 
-        {/* Body (scrollable) */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6">
-
-          {/* Name + color */}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
@@ -291,7 +248,6 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
             </div>
           </div>
 
-          {/* Divider */}
           <div className="h-px bg-slate-100" />
 
           {/* Stage builder */}
@@ -300,12 +256,12 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
               <p className="text-sm font-semibold text-slate-700 mb-1">Etapas disponibles</p>
               <p className="text-xs text-slate-400 mb-3">Haz clic en una etapa para agregarla al flujo</p>
               <div className="flex flex-wrap gap-2">
-                {ALL_STAGES.map(({ id, label, icon }) => {
-                  const added = stages.includes(id);
+                {etapas.map((et) => {
+                  const added = selectedStages.some((s) => s.etapaId === et.id);
                   return (
                     <button
-                      key={id}
-                      onClick={() => addStage(id)}
+                      key={et.id}
+                      onClick={() => addStage(et)}
                       disabled={added}
                       className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                         added
@@ -313,8 +269,8 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-900 hover:bg-slate-900 hover:text-white shadow-sm cursor-pointer"
                       }`}
                     >
-                      <span>{icon}</span>
-                      {label}
+                      <span>{getStageIcon(et.icono)}</span>
+                      {et.nombre}
                       {!added && (
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
                           <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -335,84 +291,64 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
             <div>
               <p className="text-sm font-semibold text-slate-700 mb-2">
                 Flujo configurado
-                {stages.length > 0 && (
-                  <span className="ml-2 text-xs font-normal text-slate-400">{stages.length} etapa{stages.length !== 1 ? "s" : ""}</span>
+                {selectedStages.length > 0 && (
+                  <span className="ml-2 text-xs font-normal text-slate-400">{selectedStages.length} etapa{selectedStages.length !== 1 ? "s" : ""}</span>
                 )}
               </p>
 
-              {stages.length === 0 ? (
+              {selectedStages.length === 0 ? (
                 <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-slate-200 py-8 text-sm text-slate-400">
                   Agrega etapas desde el listado de arriba
                 </div>
               ) : (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
-                  {stages.map((s, i) => {
-                    const info = stageInfo(s);
-                    return (
-                      <div
-                        key={s}
-                        className={`flex items-center gap-3 px-4 py-3 bg-white ${
-                          i < stages.length - 1 ? "border-b border-slate-100" : ""
-                        }`}
-                      >
-                        {/* Step number */}
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">
-                          {i + 1}
-                        </span>
-
-                        {/* Icon + Name */}
-                        <span className="text-slate-400 shrink-0">{info?.icon}</span>
-                        <span className="flex-1 text-sm font-medium text-slate-800">{s}</span>
-
-                        {/* Controls */}
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => moveUp(i)}
-                            disabled={i === 0}
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-default transition-colors"
-                            title="Subir"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="18 15 12 9 6 15" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => moveDown(i)}
-                            disabled={i === stages.length - 1}
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-default transition-colors"
-                            title="Bajar"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="6 9 12 15 18 9" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => removeStage(i)}
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors ml-1"
-                            title="Eliminar"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          </button>
-                        </div>
+                  {selectedStages.map((s, i) => (
+                    <div
+                      key={`${s.etapaId}-${i}`}
+                      className={`flex items-center gap-3 px-4 py-3 bg-white ${
+                        i < selectedStages.length - 1 ? "border-b border-slate-100" : ""
+                      }`}
+                    >
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">
+                        {i + 1}
+                      </span>
+                      <span className="text-slate-400 shrink-0">{getStageIcon(s.icono)}</span>
+                      <span className="flex-1 text-sm font-medium text-slate-800">{s.nombre}</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => moveUp(i)} disabled={i === 0} className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-default transition-colors" title="Subir">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+                        </button>
+                        <button onClick={() => moveDown(i)} disabled={i === selectedStages.length - 1} className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-default transition-colors" title="Bajar">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                        </button>
+                        <button onClick={() => removeStage(i)} className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors ml-1" title="Eliminar">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                        </button>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
             {/* Preview */}
-            {stages.length > 0 && (
+            {selectedStages.length > 0 && (
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Vista previa del flujo</p>
-                <FlowPreview stages={stages} small />
+                <FlowPreview stages={selectedStages.map((s, i) => ({
+                  id: "",
+                  etapaId: s.etapaId,
+                  nombre: s.nombre,
+                  etapaNombre: s.nombre,
+                  orden: i + 1,
+                  requiereMaquina: false,
+                  icono: s.icono,
+                  categoria: "",
+                }))} small />
               </div>
             )}
           </div>
 
-          {/* Error */}
           {error && (
             <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -425,17 +361,15 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-7 py-4">
-          <button
-            onClick={onClose}
-            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-          >
+          <button onClick={onClose} className="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white hover:bg-slate-700 transition-colors shadow-sm"
+            disabled={saving}
+            className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white hover:bg-slate-700 transition-colors shadow-sm disabled:opacity-50"
           >
-            {isEdit ? "Guardar cambios" : "Crear Workflow"}
+            {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear Workflow"}
           </button>
         </div>
       </div>
@@ -445,7 +379,7 @@ function WorkflowModal({ workflow, onSave, onClose }: ModalProps) {
 
 // ─── Delete confirmation ───────────────────────────────────────────────────────
 
-function DeleteConfirm({ name, onConfirm, onCancel }: { name: string; onConfirm: () => void; onCancel: () => void }) {
+function DeleteConfirm({ name, deleting, onConfirm, onCancel }: { name: string; deleting: boolean; onConfirm: () => void; onCancel: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCancel} />
@@ -465,11 +399,11 @@ function DeleteConfirm({ name, onConfirm, onCancel }: { name: string; onConfirm:
           ¿Seguro que deseas eliminar el workflow <strong>&ldquo;{name}&rdquo;</strong>?
         </p>
         <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+          <button onClick={onCancel} disabled={deleting} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
             Cancelar
           </button>
-          <button onClick={onConfirm} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white hover:bg-red-700 transition-colors">
-            Eliminar
+          <button onClick={onConfirm} disabled={deleting} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white hover:bg-red-700 transition-colors disabled:opacity-50">
+            {deleting ? "Eliminando..." : "Eliminar"}
           </button>
         </div>
       </div>
@@ -492,7 +426,7 @@ function WorkflowCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const c = COLOR_MAP[wf.colorKey];
+  const c = COLOR_MAP[wf.colorKey] ?? COLOR_MAP.indigo;
 
   return (
     <div className={`rounded-2xl border bg-white shadow-sm transition-all duration-200 overflow-hidden ${c.border}`}>
@@ -511,38 +445,19 @@ function WorkflowCard({
           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${c.badge} ${c.badgeText}`}>
             {wf.stages.length} etapas
           </span>
-          {/* Edit */}
-          <button
-            onClick={onEdit}
-            title="Editar"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
-          >
+          <button onClick={onEdit} title="Editar" className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
-          {/* Delete */}
-          <button
-            onClick={onDelete}
-            title="Eliminar"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm"
-          >
+          <button onClick={onDelete} title="Eliminar" className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M9 6V4h6v2" />
             </svg>
           </button>
-          {/* Expand */}
-          <button
-            onClick={onToggle}
-            title={expanded ? "Colapsar" : "Ver flujo"}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors shadow-sm"
-          >
-            <svg
-              width="13" height="13" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-            >
+          <button onClick={onToggle} title={expanded ? "Colapsar" : "Ver flujo"} className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors shadow-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}>
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
@@ -586,7 +501,7 @@ function WorkflowCard({
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
               Máquinas: <strong className="text-slate-700">
-                {wf.stages.filter(s => ["Impresión", "Troquelado", "Formado"].includes(s)).join(", ") || "—"}
+                {wf.stages.filter(s => s.requiereMaquina || s.categoria === "maquina").map(s => s.nombre).join(", ") || "—"}
               </strong>
             </span>
           </div>
@@ -599,33 +514,97 @@ function WorkflowCard({
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 export function GestionWorkflowsView() {
-  const [workflows, setWorkflows] = useState<WorkflowDef[]>(INITIAL_WORKFLOWS);
+  const [workflows, setWorkflows] = useState<WorkflowDef[]>([]);
+  const [etapas, setEtapas] = useState<EtapaDB[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [editingWf, setEditingWf] = useState<WorkflowDef | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const fetchWorkflows = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/workflows");
+      if (!res.ok) throw new Error("Error al cargar workflows");
+      const data = await res.json();
+      setWorkflows(data.workflows ?? []);
+      setEtapas(data.etapas ?? []);
+    } catch (e) {
+      console.error(e);
+      setErrorMsg("Error al cargar workflows");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchWorkflows(); }, [fetchWorkflows]);
 
   const openCreate = () => { setEditingWf(undefined); setModalMode("create"); };
   const openEdit = (wf: WorkflowDef) => { setEditingWf(wf); setModalMode("edit"); };
   const closeModal = () => { setModalMode(null); setEditingWf(undefined); };
 
-  const handleSave = (wf: WorkflowDef) => {
-    if (modalMode === "edit") {
-      setWorkflows((prev) => prev.map((w) => (w.id === wf.id ? wf : w)));
-    } else {
-      setWorkflows((prev) => [...prev, wf]);
+  const handleSave = async (data: { name: string; description: string; colorKey: ColorKey; stages: { etapaId: string; nombrePaso?: string; requiereMaquina?: boolean }[] }) => {
+    setSaving(true);
+    setErrorMsg("");
+    try {
+      const isEdit = modalMode === "edit" && editingWf;
+      const res = await fetch("/api/admin/workflows", {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isEdit ? { id: editingWf.id, ...data } : data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        setErrorMsg(err.error || "Error al guardar");
+        return;
+      }
+
+      closeModal();
+      await fetchWorkflows();
+    } catch (e) {
+      setErrorMsg("Error de conexión");
+    } finally {
+      setSaving(false);
     }
-    closeModal();
   };
 
-  const handleDelete = (id: string) => {
-    setWorkflows((prev) => prev.filter((w) => w.id !== id));
-    setDeletingId(null);
-    if (expandedId === id) setExpandedId(null);
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    setErrorMsg("");
+    try {
+      const res = await fetch(`/api/admin/workflows?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json();
+        setErrorMsg(err.error || "Error al eliminar");
+        return;
+      }
+      setDeletingId(null);
+      if (expandedId === id) setExpandedId(null);
+      await fetchWorkflows();
+    } catch (e) {
+      setErrorMsg("Error de conexión");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const totalActive = workflows.reduce((s, w) => s + w.activeOTs, 0);
   const totalCompleted = workflows.reduce((s, w) => s + w.completedThisWeek, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+          <p className="text-sm text-slate-500">Cargando workflows...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -650,6 +629,21 @@ export function GestionWorkflowsView() {
         </div>
 
         <div className="px-8 py-6 space-y-6">
+          {/* Error banner */}
+          {errorMsg && (
+            <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              {errorMsg}
+              <button onClick={() => setErrorMsg("")} className="ml-auto text-red-400 hover:text-red-600">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {/* Summary stats */}
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -681,10 +675,7 @@ export function GestionWorkflowsView() {
                 <p className="text-sm font-semibold text-slate-500">No hay workflows configurados</p>
                 <p className="text-xs text-slate-400 mt-1">Crea el primer workflow para comenzar</p>
               </div>
-              <button
-                onClick={openCreate}
-                className="mt-2 flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-700 transition-colors"
-              >
+              <button onClick={openCreate} className="mt-2 flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-700 transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
@@ -712,6 +703,8 @@ export function GestionWorkflowsView() {
       {(modalMode === "create" || modalMode === "edit") && (
         <WorkflowModal
           workflow={editingWf}
+          etapas={etapas}
+          saving={saving}
           onSave={handleSave}
           onClose={closeModal}
         />
@@ -720,6 +713,7 @@ export function GestionWorkflowsView() {
       {deletingId && (
         <DeleteConfirm
           name={workflows.find((w) => w.id === deletingId)?.name ?? ""}
+          deleting={deleting}
           onConfirm={() => handleDelete(deletingId)}
           onCancel={() => setDeletingId(null)}
         />

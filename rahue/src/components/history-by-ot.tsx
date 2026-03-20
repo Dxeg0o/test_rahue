@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { format } from "date-fns";
-import type { OTDocument } from "@/lib/mockOtData";
+import type { OTDocument } from "@/lib/history-types";
 import { OtDetailCard } from "./ot-detail-card";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -13,7 +13,7 @@ export function HistoryByOt() {
   const [selectedOt, setSelectedOt] = useState<OTDocument | null>(null);
 
   const { data: ots, isLoading } = useSWR<OTDocument[]>(
-    `/api/history/ot?limit=100&q=${encodeURIComponent(search)}`,
+    `/api/history/ots?limit=100&q=${encodeURIComponent(search)}`,
     fetcher
   );
 

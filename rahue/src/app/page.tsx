@@ -14,8 +14,9 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import { GeneralHistoryView } from "@/components/general-history-view";
 import { ActiveOts } from "@/components/active-ots";
+import { AnaliticaView } from "@/components/analitica-view";
+import { HistorialTrabajadoresView } from "@/components/historial-trabajadores-view";
 import { MachineCard } from "@/components/machine-card";
 import { MachineCardCompact } from "@/components/machine-card-compact";
 import { ProcessCard } from "@/components/process-card";
@@ -80,9 +81,6 @@ function HomePageContent() {
       .catch(() => {});
   }, []);
 
-  // High-level Tabs: "View Mode"
-  const [activeView, setActiveView] = useState<"live" | "history" | "workers">("live");
-
   // Live View Sub-tab
   const [liveViewMode, setLiveViewMode] = useState<"general" | "ots">("general");
 
@@ -123,6 +121,13 @@ function HomePageContent() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (activeSection !== "planta") {
+      setSelectedMachineId(null);
+      setExpandedColumn(null);
+    }
+  }, [activeSection]);
+
   const selectedMachine = machines.find(m => m.id === selectedMachineId);
 
   // Helper to calculate progress
@@ -142,6 +147,10 @@ function HomePageContent() {
       <div className="flex-1 min-w-0 overflow-y-auto">
         {!isEmbed && activeSection === "ots" ? (
           <GestionOtsView />
+        ) : !isEmbed && activeSection === "analytics" ? (
+          <AnaliticaView />
+        ) : !isEmbed && activeSection === "workers" ? (
+          <HistorialTrabajadoresView />
         ) : !isEmbed && activeSection === "workflows" ? (
           <GestionWorkflowsView />
         ) : !isEmbed && activeSection === "usuarios" ? (
@@ -176,45 +185,10 @@ function HomePageContent() {
       </header>
       )}
 
-      {/* Main Navigation Tabs (Only visible in Main View) */}
-      {!selectedMachineId && (
-          <div className="flex items-center gap-1 rounded-2xl bg-slate-100 p-1.5 self-start">
-            <button
-              onClick={() => setActiveView("live")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                activeView === "live"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-              </svg>
-              Planta en Vivo
-            </button>
-            <button
-              onClick={() => setActiveView("history")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                activeView === "history"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 3v5h5" />
-                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
-                <path d="M12 7v5l4 2" />
-              </svg>
-              Historial General
-            </button>
-          </div>
-      )}
-
       {/* --- CONTENT AREA --- */}
 
       {/* 1. LIVE VIEW (GRID OR OTS) */}
-      {!selectedMachineId && activeView === "live" && (
+      {!selectedMachineId && (
         <div className="space-y-6">
             {/* Live View Sub-Navigation */}
             <div className="flex space-x-4 border-b border-slate-200">
@@ -616,13 +590,6 @@ function HomePageContent() {
                 <ActiveOts initialSelectedId={otInitialMachineId} onInitialConsumed={() => setOtInitialMachineId(null)} />
             )}
         </div>
-      )}
-
-      {/* 2. HISTORY / WORKERS PLACEHOLDERS */}
-      {!selectedMachineId && activeView !== "live" && (
-         <div className="w-full h-full">
-            <GeneralHistoryView />
-         </div>
       )}
 
 

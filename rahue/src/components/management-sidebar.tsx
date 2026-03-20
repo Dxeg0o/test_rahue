@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export type ManagementSection = "planta" | "ots" | "workflows" | "usuarios";
+export type ManagementSection =
+  | "planta"
+  | "ots"
+  | "analytics"
+  | "workers"
+  | "workflows"
+  | "usuarios";
 
 interface CurrentUser {
   id: string;
@@ -59,6 +65,22 @@ const IconUsuarios = () => (
   </svg>
 );
 
+const IconAnalytics = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 3v18h18" />
+    <path d="M7 15l4-4 3 3 5-7" />
+  </svg>
+);
+
+const IconWorkersHistory = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M20 8v6" />
+    <path d="M17 11h6" />
+  </svg>
+);
+
 const IconChevron = ({ flipped }: { flipped: boolean }) => (
   <svg
     width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -92,6 +114,20 @@ const NAV_GROUPS = [
         label: "Órdenes de Trabajo",
         description: "Creación y seguimiento de OTs",
         icon: <IconOTs />,
+        badge: null,
+      },
+      {
+        id: "analytics" as ManagementSection,
+        label: "Analítica",
+        description: "Historial por periodo",
+        icon: <IconAnalytics />,
+        badge: null,
+      },
+      {
+        id: "workers" as ManagementSection,
+        label: "Trabajadores",
+        description: "Historial por operador",
+        icon: <IconWorkersHistory />,
         badge: null,
       },
       {

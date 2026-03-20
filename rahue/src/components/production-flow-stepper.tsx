@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ProductStage, StageTimestamps } from "@/lib/demo-context";
-import type { StageDetail } from "@/lib/mockOtData";
+import type { StageDetail } from "@/lib/history-types";
 
 interface ProductionFlowStepperProps {
   flow: ProductStage[];

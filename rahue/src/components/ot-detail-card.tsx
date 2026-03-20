@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import type { OTDocument } from "@/lib/mockOtData";
+import type { OTDocument } from "@/lib/history-types";
 import { ProductionFlowStepper } from "./production-flow-stepper";
 
 interface OtDetailCardProps {
@@ -17,6 +17,35 @@ export function OtDetailCard({ ot, onClose, className = "" }: OtDetailCardProps)
 
   if (!ot) return null;
 
+  const statusConfig =
+    ot.status === "completada"
+      ? {
+          label: "Completada",
+          badgeClass:
+            "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400",
+          flowStatus: "COMPLETED" as const,
+        }
+      : ot.status === "en_proceso"
+        ? {
+            label: "En Proceso",
+            badgeClass:
+              "bg-indigo-500/20 border border-indigo-500/30 text-indigo-300",
+            flowStatus: "RUNNING" as const,
+          }
+        : ot.status === "pendiente"
+          ? {
+              label: "Pendiente",
+              badgeClass:
+                "bg-amber-500/20 border border-amber-500/30 text-amber-300",
+              flowStatus: "PAUSED" as const,
+            }
+          : {
+              label: "Cancelada",
+              badgeClass:
+                "bg-red-500/20 border border-red-500/30 text-red-300",
+              flowStatus: "PAUSED" as const,
+            };
+
   return (
     <div className={`flex flex-col h-full bg-white ${className}`}>
         {/* Header */}
@@ -24,7 +53,9 @@ export function OtDetailCard({ ot, onClose, className = "" }: OtDetailCardProps)
             <div className="w-full">
                 <div className="flex items-center gap-3 mb-4">
                     <h2 className="text-2xl font-bold">{ot.id}</h2>
-                    <span className="bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs px-2.5 py-1 rounded-md uppercase font-bold tracking-wider">Completada</span>
+                    <span className={`${statusConfig.badgeClass} text-xs px-2.5 py-1 rounded-md uppercase font-bold tracking-wider`}>
+                      {statusConfig.label}
+                    </span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
                     <div>
@@ -81,8 +112,8 @@ export function OtDetailCard({ ot, onClose, className = "" }: OtDetailCardProps)
                 <h3 className="text-lg font-bold text-slate-900 mb-6">Línea de Vida</h3>
                 <ProductionFlowStepper
                     flow={ot.flow}
-                    currentStageName="COMPLETADO"
-                    status="COMPLETED"
+                    currentStageName={ot.currentStageName}
+                    status={statusConfig.flowStatus}
                     stageTimestamps={ot.stageTimestamps}
                     stagesDetail={ot.stages}
                 />

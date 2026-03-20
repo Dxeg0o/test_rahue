@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 import { useDemo } from "@/lib/demo-context";
+import type { OTDocument } from "@/lib/history-types";
+import { OtDetailCard } from "./ot-detail-card";
 
-type OTTab = "pendientes" | "activas";
+type OTTab = "pendientes" | "activas" | "historial";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   RUNNING:    { bg: "bg-green-50",  text: "text-green-700",  dot: "bg-green-500" },
@@ -56,6 +61,15 @@ export function GestionOtsView() {
   const { machines, pendingOts, plantStats } = useDemo();
   const [tab, setTab] = useState<OTTab>("pendientes");
   const [search, setSearch] = useState("");
+  const [selectedOtCode, setSelectedOtCode] = useState<string | null>(null);
+  const { data: historicalOts, isLoading: isHistoricalLoading } = useSWR<OTDocument[]>(
+    `/api/history/ots?limit=200&q=${encodeURIComponent(search)}`,
+    fetcher
+  );
+  const { data: selectedOt, isLoading: isSelectedOtLoading } = useSWR<OTDocument | null>(
+    selectedOtCode ? `/api/ots/${encodeURIComponent(selectedOtCode)}` : null,
+    fetcher
+  );
 
   const activeMachines = machines.filter((m) => m.order !== null);
 
@@ -103,6 +117,7 @@ export function GestionOtsView() {
   const tabs: { id: OTTab; label: string; count: number }[] = [
     { id: "pendientes", label: "Pendientes", count: pendingOts.length },
     { id: "activas",    label: "En Proceso", count: activeMachines.length },
+    { id: "historial",  label: "Historial",  count: historicalOts?.length ?? plantStats.completedWeek },
   ];
 
   return (
@@ -125,12 +140,13 @@ export function GestionOtsView() {
 
         {/* Toolbar */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Tabs */}
           <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
             {tabs.map((t) => (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id)}
+                onClick={() => {
+                  setTab(t.id);
+                }}
                 className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
                   tab === t.id
                     ? "bg-white text-slate-900 shadow-sm"
@@ -151,7 +167,6 @@ export function GestionOtsView() {
             ))}
           </div>
 
-          {/* Search */}
           <div className="relative max-w-xs w-full">
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -163,7 +178,11 @@ export function GestionOtsView() {
             </svg>
             <input
               type="text"
-              placeholder="Buscar OT, cliente, producto…"
+              placeholder={
+                tab === "historial"
+                  ? "Buscar OT, cliente, operador…"
+                  : "Buscar OT, cliente, producto…"
+              }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
@@ -172,6 +191,59 @@ export function GestionOtsView() {
         </div>
 
         {/* Table */}
+        {tab === "historial" ? (
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {isHistoricalLoading ? (
+              <div className="py-16 text-center text-sm text-slate-400">
+                Cargando historial...
+              </div>
+            ) : historicalOts && historicalOts.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                    <Th>Orden</Th>
+                    <Th>Cliente</Th>
+                    <Th>Producto / SKU</Th>
+                    <Th>Unidades</Th>
+                    <Th>Últ. Operador</Th>
+                    <Th>Estado</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historicalOts.map((ot, i) => (
+                    <tr
+                      key={ot.id}
+                      onClick={() => setSelectedOtCode(ot.id)}
+                      className={`cursor-pointer border-b border-slate-50 transition-colors hover:bg-slate-50 ${
+                        i === historicalOts.length - 1 ? "border-b-0" : ""
+                      }`}
+                    >
+                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900">
+                        {ot.id}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-700">{ot.client}</td>
+                      <td className="px-5 py-3.5">
+                        <p className="font-medium text-slate-800">{ot.productName}</p>
+                        <p className="text-xs text-slate-400 font-mono">{ot.sku || "—"}</p>
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-700">
+                        {ot.unitsProduced.toLocaleString("es-CL")} und.
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-700">
+                        {ot.workerName || "—"}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <StatusBadge status="COMPLETED" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <EmptyState message="No hay OTs en el historial" />
+            )}
+          </div>
+        ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {tab === "pendientes" ? (
             filteredPending.length === 0 ? (
@@ -192,11 +264,12 @@ export function GestionOtsView() {
                   {filteredPending.map((ot, i) => (
                     <tr
                       key={ot.id}
+                      onClick={() => setSelectedOtCode(ot.id)}
                       className={`border-b border-slate-50 transition-colors hover:bg-slate-50 ${
                         i === filteredPending.length - 1 ? "border-b-0" : ""
                       }`}
                     >
-                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900">
+                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900 cursor-pointer">
                         {ot.id}
                       </td>
                       <td className="px-5 py-3.5 text-slate-700">{ot.client}</td>
@@ -237,11 +310,12 @@ export function GestionOtsView() {
                   {filteredActive.map((m, i) => (
                     <tr
                       key={m.id}
+                      onClick={() => setSelectedOtCode(m.order!.id)}
                       className={`border-b border-slate-50 transition-colors hover:bg-slate-50 ${
                         i === filteredActive.length - 1 ? "border-b-0" : ""
                       }`}
                     >
-                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900">
+                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900 cursor-pointer">
                         {m.order!.id}
                       </td>
                       <td className="px-5 py-3.5 text-slate-700">
@@ -266,7 +340,29 @@ export function GestionOtsView() {
             )
           )}
         </div>
+        )}
       </div>
+
+      {selectedOtCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-[1px]">
+          <div
+            className="absolute inset-0"
+            onClick={() => setSelectedOtCode(null)}
+          />
+          <div className="relative z-10 h-[85vh] w-full max-w-6xl overflow-hidden rounded-3xl shadow-2xl">
+            {isSelectedOtLoading || !selectedOt ? (
+              <div className="flex h-full items-center justify-center bg-white text-slate-400">
+                Cargando detalle de la OT...
+              </div>
+            ) : (
+              <OtDetailCard
+                ot={selectedOt}
+                onClose={() => setSelectedOtCode(null)}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

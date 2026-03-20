@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 import { 
   BarChart, 
   Bar, 
@@ -12,16 +13,26 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { getOtsByPeriod, getStatsByTime, type PeriodFilter } from "@/lib/history-helpers";
 import { OtDetailCard } from "./ot-detail-card";
-import type { OTDocument } from "@/lib/mockOtData";
+import type {
+  OTDocument,
+  PeriodFilter,
+  TimeHistoryResponse,
+} from "@/lib/history-types";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function HistoryByTime() {
   const [period, setPeriod] = useState<PeriodFilter>("week");
   const [selectedOt, setSelectedOt] = useState<OTDocument | null>(null);
-
-  const { ots, start, end } = getOtsByPeriod(period);
-  const stats = getStatsByTime(ots);
+  const { data, isLoading } = useSWR<TimeHistoryResponse>(
+    `/api/history/time?period=${period}`,
+    fetcher
+  );
+  const ots = data?.ots ?? [];
+  const stats = data?.stats ?? null;
+  const start = data?.start ? new Date(data.start) : new Date();
+  const end = data?.end ? new Date(data.end) : new Date();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleBarClick = (data: any) => {
@@ -80,7 +91,11 @@ export function HistoryByTime() {
         {/* CHART Area */}
         <div className="flex-1 bg-white rounded-xl border border-slate-200 p-4 shadow-sm min-h-[250px] relative">
             <h3 className="text-slate-900 font-bold mb-4">Producción del Periodo</h3>
-            {stats && stats.chartData.length > 0 ? (
+            {isLoading ? (
+                <div className="h-full flex items-center justify-center text-slate-400">
+                    Cargando datos del periodo...
+                </div>
+            ) : stats && stats.chartData.length > 0 ? (
                 <div className="absolute inset-0 top-12 bottom-4 left-4 right-4">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={stats.chartData} onClick={handleBarClick}>

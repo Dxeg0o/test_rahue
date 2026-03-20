@@ -1,24 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { WORKERS, getWorkerStats, type OTDocument } from "@/lib/mockOtData";
+import useSWR from "swr";
+import type { OTDocument, WorkerHistorySummary } from "@/lib/history-types";
 import { OtDetailCard } from "./ot-detail-card";
 import { format } from "date-fns";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function HistoryByWorker() {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [selectedOt, setSelectedOt] = useState<OTDocument | null>(null);
+  const { data: workers, isLoading } = useSWR<WorkerHistorySummary[]>(
+    "/api/history/workers",
+    fetcher
+  );
 
-  const selectedWorkerStats = selectedWorkerId 
-    ? getWorkerStats(WORKERS.find(w => w.id === selectedWorkerId)?.name || "") 
+  const selectedWorkerStats = selectedWorkerId
+    ? workers?.find((worker) => worker.id === selectedWorkerId) ?? null
     : null;
 
   return (
     <div className="flex h-[calc(100vh-220px)] gap-6">
       {/* LEFT: Workers List */}
       <div className={`flex flex-col gap-4 transition-all duration-300 ${selectedWorkerId ? "w-1/3" : "w-full"}`}>
-        <div className="grid grid-cols-1 gap-3">
-            {WORKERS.map((worker) => (
+        {isLoading ? (
+          <div className="text-center py-10 text-slate-400">Cargando trabajadores...</div>
+        ) : workers && workers.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3">
+            {workers.map((worker) => (
                 <div
                     key={worker.id}
                     onClick={() => { setSelectedWorkerId(worker.id); setSelectedOt(null); }}
@@ -41,7 +51,10 @@ export function HistoryByWorker() {
                     </div>
                 </div>
             ))}
-        </div>
+          </div>
+        ) : (
+          <div className="text-center py-10 text-slate-400">No hay historial de trabajadores.</div>
+        )}
       </div>
 
       {/* RIGHT: Worker Detail OR OT Detail */}

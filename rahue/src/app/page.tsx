@@ -65,12 +65,18 @@ function HomePageContent() {
 
   // Sidebar section state
   const [activeSection, setActiveSection] = useState<ManagementSection>("planta");
-  const [userRol, setUserRol] = useState<"admin" | "supervisor" | "operador" | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    nombre: string;
+    email: string | null;
+    rut: string | null;
+    rol: "admin" | "supervisor" | "operador";
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/me")
-      .then((r) => r.json())
-      .then((data) => setUserRol(data.rol ?? null))
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.rol) setCurrentUser(data); })
       .catch(() => {});
   }, []);
 
@@ -129,7 +135,7 @@ function HomePageContent() {
     <div className={isEmbed ? "flex min-h-screen w-full" : "flex"} style={isEmbed ? {} : { minHeight: "calc(100vh - 3.5rem)" }}>
       {/* Sidebar (hidden in embed mode) */}
       {!isEmbed && (
-        <ManagementSidebar activeSection={activeSection} onSectionChange={setActiveSection} userRol={userRol} />
+        <ManagementSidebar activeSection={activeSection} onSectionChange={setActiveSection} userRol={currentUser?.rol ?? null} currentUser={currentUser} />
       )}
 
       {/* Right panel: section content */}

@@ -1,13 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export type ManagementSection = "planta" | "ots" | "workflows" | "usuarios";
+
+interface CurrentUser {
+  id: string;
+  nombre: string;
+  email: string | null;
+  rut: string | null;
+  rol: "admin" | "supervisor" | "operador";
+}
 
 interface Props {
   activeSection: ManagementSection;
   onSectionChange: (section: ManagementSection) => void;
   userRol?: "admin" | "supervisor" | "operador" | null;
+  currentUser?: CurrentUser | null;
 }
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -109,7 +119,7 @@ const NAV_GROUPS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ManagementSidebar({ activeSection, onSectionChange, userRol }: Props) {
+export function ManagementSidebar({ activeSection, onSectionChange, userRol, currentUser }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   const visibleGroups = NAV_GROUPS.filter((group) => {
@@ -218,12 +228,62 @@ export function ManagementSidebar({ activeSection, onSectionChange, userRol }: P
         ))}
       </nav>
 
-      {/* Footer */}
-      {!collapsed && (
-        <div className="border-t border-white/8 px-4 py-3">
+      {/* Footer: usuario actual + logout */}
+      <div className={`border-t border-white/8 ${collapsed ? "px-2 py-3" : "px-4 py-3"}`}>
+        {currentUser && !collapsed ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* Avatar inicial */}
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">
+                {currentUser.nombre.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-white/80 leading-tight">{currentUser.nombre}</p>
+                <p className="truncate text-[10px] text-white/30 leading-tight mt-0.5">
+                  {currentUser.email ?? currentUser.rut ?? ""}
+                </p>
+              </div>
+              {/* Rol badge */}
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                currentUser.rol === "admin" ? "bg-amber-500/20 text-amber-400" :
+                currentUser.rol === "supervisor" ? "bg-indigo-500/20 text-indigo-400" :
+                "bg-white/10 text-white/30"
+              }`}>
+                {currentUser.rol}
+              </span>
+            </div>
+            <button
+              onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                window.location.href = "/auth/login";
+              }}
+              className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-medium text-white/30 hover:bg-white/6 hover:text-white/60 transition-colors"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Cerrar sesión
+            </button>
+          </div>
+        ) : collapsed && currentUser ? (
+          <button
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              window.location.href = "/auth/login";
+            }}
+            title="Cerrar sesión"
+            className="flex h-7 w-7 mx-auto items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white hover:bg-indigo-700 transition-colors"
+          >
+            {currentUser.nombre.charAt(0).toUpperCase()}
+          </button>
+        ) : (
           <p className="text-[10px] text-white/20">Rahue v1.0</p>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 }

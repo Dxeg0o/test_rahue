@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useDemo } from "@/lib/demo-context";
-import { PENDING_OTS } from "@/lib/mockOtData";
 
 type OTTab = "pendientes" | "activas";
 
@@ -54,7 +53,7 @@ function StatCard({ label, value, sublabel, accent }: StatCardProps) {
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 export function GestionOtsView() {
-  const { machines } = useDemo();
+  const { machines, pendingOts, plantStats } = useDemo();
   const [tab, setTab] = useState<OTTab>("pendientes");
   const [search, setSearch] = useState("");
 
@@ -63,7 +62,7 @@ export function GestionOtsView() {
   const statsData = [
     {
       label: "Pendientes",
-      value: PENDING_OTS.length,
+      value: pendingOts.length,
       sublabel: "por iniciar",
       accent: "text-amber-600",
     },
@@ -75,19 +74,19 @@ export function GestionOtsView() {
     },
     {
       label: "Completadas Hoy",
-      value: 8,
+      value: plantStats.completedToday,
       sublabel: "en este turno",
       accent: "text-green-600",
     },
     {
-      label: "Total Semana",
-      value: 47,
-      sublabel: "últimos 7 días",
+      label: "Total Completadas",
+      value: plantStats.completedWeek,
+      sublabel: "historial completo",
       accent: "text-slate-900",
     },
   ];
 
-  const filteredPending = PENDING_OTS.filter(
+  const filteredPending = pendingOts.filter(
     (ot) =>
       ot.id.toLowerCase().includes(search.toLowerCase()) ||
       ot.client.toLowerCase().includes(search.toLowerCase()) ||
@@ -102,7 +101,7 @@ export function GestionOtsView() {
   );
 
   const tabs: { id: OTTab; label: string; count: number }[] = [
-    { id: "pendientes", label: "Pendientes", count: PENDING_OTS.length },
+    { id: "pendientes", label: "Pendientes", count: pendingOts.length },
     { id: "activas",    label: "En Proceso", count: activeMachines.length },
   ];
 

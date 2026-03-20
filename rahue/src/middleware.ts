@@ -38,10 +38,11 @@ export async function middleware(request: NextRequest) {
   // Rutas públicas que no requieren autenticación
   const publicPaths = ["/auth/login", "/auth/signup", "/auth/callback"];
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
+  const isApiPath = pathname.startsWith("/api");
   const isMfaPath = pathname.startsWith("/auth/mfa");
 
   // Si no está autenticado y accede a ruta protegida → redirigir a login
-  if (!user && !isPublicPath && !isMfaPath) {
+  if (!user && !isPublicPath && !isMfaPath && !isApiPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);

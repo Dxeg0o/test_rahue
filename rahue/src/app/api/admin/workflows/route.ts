@@ -3,11 +3,9 @@ import { db } from "@/db";
 import {
   tipoProducto,
   workflowEtapa,
-  etapa,
-  ot,
   actividadOt,
 } from "@/db/schema";
-import { eq, and, sql, inArray, count } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 // ── GET /api/admin/workflows ────────────────────────────────────────────────
 // Returns all workflows (tipoProducto) with their stages and live stats.
@@ -170,9 +168,9 @@ export async function POST(request: Request) {
     await db.insert(workflowEtapa).values(weValues);
 
     return NextResponse.json({ id: newTp.id }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating workflow:", error);
-    if (error?.code === "23505") {
+    if (error && typeof error === "object" && "code" in error && error.code === "23505") {
       return NextResponse.json(
         { error: "Ya existe un tipo de producto con ese nombre" },
         { status: 409 }
@@ -258,9 +256,9 @@ export async function PUT(request: Request) {
     await db.insert(workflowEtapa).values(weValues);
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating workflow:", error);
-    if (error?.code === "23505") {
+    if (error && typeof error === "object" && "code" in error && error.code === "23505") {
       return NextResponse.json(
         { error: "Ya existe un tipo de producto con ese nombre" },
         { status: 409 }

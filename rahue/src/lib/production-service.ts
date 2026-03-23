@@ -184,6 +184,12 @@ type ProgressSnapshot = {
   completedAt: Date | null;
 };
 
+function isUuid(value: string) {
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
+    value
+  );
+}
+
 function activityMatchesWorkflowStep(
   activity: ActivitySnapshot,
   step: WorkflowStepSnapshot
@@ -256,6 +262,11 @@ async function getOtByCode(tx: Tx, otCode: string): Promise<OtSnapshot> {
 }
 
 async function getOperatorId(tx: Tx, operatorCode: string) {
+  const normalizedOperatorCode = operatorCode.trim();
+  const operatorIdMatch = isUuid(normalizedOperatorCode)
+    ? eq(usuario.id, normalizedOperatorCode)
+    : undefined;
+
   const rows = await tx
     .select({ id: usuario.id })
     .from(usuario)
@@ -263,18 +274,18 @@ async function getOperatorId(tx: Tx, operatorCode: string) {
       and(
         eq(usuario.activo, true),
         or(
-          eq(usuario.rut, operatorCode),
-          eq(usuario.supabaseId, operatorCode),
-          eq(usuario.id, operatorCode),
-          sql`lower(${usuario.email}) = lower(${operatorCode})`,
-          sql`lower(${usuario.nombre}) = lower(${operatorCode})`
+          eq(usuario.rut, normalizedOperatorCode),
+          eq(usuario.supabaseId, normalizedOperatorCode),
+          operatorIdMatch,
+          sql`lower(${usuario.email}) = lower(${normalizedOperatorCode})`,
+          sql`lower(${usuario.nombre}) = lower(${normalizedOperatorCode})`
         )
       )
     )
     .limit(1);
 
   if (rows.length === 0) {
-    throw new OperatorNotFoundError(operatorCode);
+    throw new OperatorNotFoundError(normalizedOperatorCode);
   }
 
   return rows[0].id;

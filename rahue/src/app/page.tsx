@@ -24,6 +24,7 @@ import { ManagementSidebar, ManagementSection } from "@/components/management-si
 import { GestionOtsView } from "@/components/gestion-ots-view";
 import { GestionWorkflowsView } from "@/components/gestion-workflows-view";
 import { GestionUsuariosView } from "@/components/gestion-usuarios-view";
+import { getWorkflowProgressSummary } from "@/lib/workflow-progress";
 
 // Mock data removed in favor of DemoContext
 export default function HomePage() {
@@ -39,6 +40,14 @@ function HomePageContent() {
   const searchParams = useSearchParams();
   const isEmbed = searchParams.get("embed") === "true";
 
+  const getMachineEta = (machine: typeof machines[number]) => {
+    if (machine.status !== "RUNNING" || !machine.order?.targetUnits) return null;
+    const remaining = machine.order.targetUnits - machine.metrics.totalUnits;
+    if (remaining <= 0 || machine.metrics.currentSpeed <= 0) return null;
+    const eta = new Date(Date.now() + (remaining / machine.metrics.currentSpeed) * 60000);
+    return format(eta, "HH:mm");
+  };
+
   const MACHINE_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "maquina"), [stageCategories]);
   const PROCESOS_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "proceso"), [stageCategories]);
   const MOVIMIENTOS_AREAS = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "movimiento"), [stageCategories]);
@@ -50,7 +59,10 @@ function HomePageContent() {
       stageName: m.area,
       operatorName: m.order!.operatorName,
       status: (m.order!.status === "PAUSED" ? "WAITING" : "IN_PROGRESS") as "WAITING" | "IN_PROGRESS",
-      timeInStage: `${((new Date().getTime() - new Date(m.order!.startTime).getTime()) / 3600000).toFixed(1)} h`
+      timeInStage: `${((new Date().getTime() - new Date(m.order!.startTime).getTime()) / 3600000).toFixed(1)} h`,
+      flow: m.order!.flow,
+      currentStageName: m.area,
+      stageTimestamps: m.order!.stageTimestamps,
   }));
 
   const activeMovimientos = machines.filter(m => MOVIMIENTOS_AREAS.includes(m.area as string) && m.order !== null).map(m => ({
@@ -60,7 +72,10 @@ function HomePageContent() {
       stageName: m.area,
       operatorName: m.order!.operatorName,
       status: (m.order!.status === "PAUSED" ? "WAITING" : "IN_PROGRESS") as "WAITING" | "IN_PROGRESS",
-      timeInStage: `${((new Date().getTime() - new Date(m.order!.startTime).getTime()) / 3600000).toFixed(1)} h`
+      timeInStage: `${((new Date().getTime() - new Date(m.order!.startTime).getTime()) / 3600000).toFixed(1)} h`,
+      flow: m.order!.flow,
+      currentStageName: m.area,
+      stageTimestamps: m.order!.stageTimestamps,
   }));
 
 
@@ -231,12 +246,15 @@ function HomePageContent() {
                                 <div className="px-4 pt-3 pb-4">
                                     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
                                         {activeProcesos.map((item, i) => {
-                                            const hash = item.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-                                            const TOTAL = 8; // 6 tintas + 2 papel
-                                            const completed = item.status === "IN_PROGRESS"
-                                                ? ((hash % 3) + 3) + ((hash % 2) + 1)
-                                                : item.status === "WAITING" ? (hash % 3) + 1 : TOTAL;
-                                            const pct = Math.round((completed / TOTAL) * 100);
+                                            const workflowProgress = getWorkflowProgressSummary({
+                                                flow: item.flow,
+                                                currentStageName: item.currentStageName,
+                                                status: item.status === "WAITING" ? "PAUSED" : "RUNNING",
+                                                stageTimestamps: item.stageTimestamps,
+                                            });
+                                            const pct = workflowProgress.totalCount > 0
+                                                ? Math.round((workflowProgress.processedCount / workflowProgress.totalCount) * 100)
+                                                : 0;
                                             const r = 8;
                                             const circ = 2 * Math.PI * r;
                                             const dash = (pct / 100) * circ;
@@ -275,7 +293,9 @@ function HomePageContent() {
                                                                 transform="rotate(-90 10 10)"
                                                             />
                                                         </svg>
-                                                        <span className="text-[10px] font-bold tabular-nums text-slate-500">{completed}/{TOTAL}</span>
+                                                        <span className="text-[10px] font-bold tabular-nums text-slate-500">
+                                                            {workflowProgress.processedCount}/{workflowProgress.totalCount}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             );
@@ -639,7 +659,7 @@ function HomePageContent() {
                        <div>
                            <p className="text-slate-400 text-sm uppercase tracking-wider">ETA</p>
                            <p className="text-6xl font-black text-emerald-400">
-                                14:30
+                                {getMachineEta(selectedMachine) || "--:--"}
                            </p>
                        </div>
                    </div>
@@ -675,7 +695,7 @@ function HomePageContent() {
                             <h3 className="mb-6 font-bold text-slate-900">Velocidad en Tiempo Real ({selectedMachine.metrics.speedUnit.toUpperCase()})</h3>
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={selectedMachine.history && selectedMachine.history.length > 0 ? selectedMachine.history : [{time: mounted ? format(currentTime, "HH:mm:ss") : "00:00:00", speed: 0, target: 60}]}>
+                                    <AreaChart data={selectedMachine.history && selectedMachine.history.length > 0 ? selectedMachine.history : [{time: mounted ? format(currentTime, "HH:mm:ss") : "00:00:00", speed: 0, target: selectedMachine.metrics.currentSpeed || 0}]}>
                                         <defs>
                                             <linearGradient id="colorSpeed" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#007bff" stopOpacity={0.3}/>

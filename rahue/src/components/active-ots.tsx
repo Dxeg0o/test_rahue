@@ -3,75 +3,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useDemo, MachineState, ProductStage, DemoStageDetail, Stop } from "@/lib/demo-context";
+import { useDemo, ProductStage, DemoStageDetail, Stop } from "@/lib/demo-context";
 import { ProductionFlowStepper } from "./production-flow-stepper";
+import { getWorkflowProgressSummary } from "@/lib/workflow-progress";
 
-// ── Llegada Materiales subtask view (read-only) ───────────────────────────
-
-const TINTAS_LM = ["Cyan", "Magenta", "Amarillo (Y)", "Negro (K)", "Barniz UV", "Blanco de Cobertura"];
-const PAPEL_LM = ["Bobina 1", "Bobina 2"];
-const CONFIRMADORES_LM = ["Ana Torres", "Luis Vega", "María González", "Carlos López", "Paula Ramos"];
-
-function LlegadaMaterialesSubtasks({ otId, orderStatus }: { otId: string; orderStatus: string }) {
-    const hash = otId.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-    const tintasCount = orderStatus === "COMPLETED" ? TINTAS_LM.length : orderStatus === "RUNNING" ? (hash % 3) + 3 : 0;
-    const papelCount = orderStatus === "COMPLETED" ? PAPEL_LM.length : orderStatus === "RUNNING" ? (hash % 2) + 1 : 0;
-    const baseMs = Date.now() - 2 * 60 * 60 * 1000;
-
-    const buildRows = (items: string[], count: number, unit: string) =>
-        items.map((label, i) => {
-            const completed = i < count;
-            const confHash = label.split("").reduce((a, c) => a + c.charCodeAt(0), hash);
-            const qty = unit === "kg" ? (confHash % 8) + 2 : (confHash % 400) + 300;
-            const quantity = `${qty} ${unit}`;
-            if (!completed) return { label, completed: false as const, quantity };
-            const completedBy = CONFIRMADORES_LM[confHash % CONFIRMADORES_LM.length];
-            const completedAt = new Date(baseMs + i * 15 * 60 * 1000)
-                .toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
-            return { label, completed: true as const, completedBy, completedAt, quantity };
-        });
-
-    const tintas = buildRows(TINTAS_LM, tintasCount, "kg");
-    const papel = buildRows(PAPEL_LM, papelCount, "m");
-
-    const renderGroup = (title: string, rows: ReturnType<typeof buildRows>) => (
-        <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                {title} ({rows.filter(r => r.completed).length}/{rows.length})
-            </p>
-            <div className="divide-y divide-slate-50 rounded-xl border border-slate-100 overflow-hidden bg-white">
-                {rows.map((r) => (
-                    <div key={r.label} className="flex items-start gap-2.5 px-3 py-2">
-                        <div className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 border flex items-center justify-center ${r.completed ? "bg-emerald-500 border-emerald-500" : "border-slate-200 bg-white"}`}>
-                            {r.completed && (
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} className="w-2.5 h-2.5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                </svg>
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                                <span className={`text-xs font-medium ${r.completed ? "text-slate-600" : "text-slate-400 italic"}`}>{r.label}</span>
-                                <span className={`text-xs flex-shrink-0 font-semibold ${r.completed ? "text-slate-500" : "text-slate-300"}`}>{r.quantity}</span>
-                            </div>
-                            {r.completed && "completedBy" in r ? (
-                                <p className="text-[10px] text-slate-400 mt-0.5">{r.completedBy} · {r.completedAt}</p>
-                            ) : !r.completed ? (
-                                <p className="text-[10px] text-slate-300 mt-0.5">Pendiente</p>
-                            ) : null}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-
-    return (
-        <div className="space-y-4">
-            {renderGroup("Tintas", tintas)}
-            {renderGroup("Papel", papel)}
-        </div>
-    );
+function formatStageWindow(start?: Date, end?: Date) {
+    if (!start) return "Sin registro";
+    if (!end) return `Desde ${format(new Date(start), "HH:mm")}`;
+    return `${format(new Date(start), "HH:mm")} - ${format(new Date(end), "HH:mm")}`;
 }
 
 interface ActiveOtsProps {
@@ -108,6 +47,16 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
 
   const selectedMachine = activeMachines.find(m => m.id === selectedMachineId);
   const MACHINE_STAGES = useMemo(() => Object.keys(stageCategories).filter(k => stageCategories[k] === "maquina"), [stageCategories]);
+  const selectedWorkflowProgress = useMemo(() => {
+      if (!selectedMachine?.order) return null;
+      return getWorkflowProgressSummary({
+          flow: selectedMachine.order.flow || [],
+          currentStageName: selectedMachine.area,
+          status: selectedMachine.status === "RUNNING" ? "RUNNING" : "PAUSED",
+          stageTimestamps: selectedMachine.order.stageTimestamps,
+          stagesDetail: selectedMachine.order.stagesDetail,
+      });
+  }, [selectedMachine]);
 
   const getProgress = (current: number, target?: number) => {
       if (!target || target === 0) return 0;
@@ -420,11 +369,67 @@ export function ActiveOts({ initialSelectedId, onInitialConsumed }: ActiveOtsPro
                                             </div>
                                         )}
                                         </>
-                                    ) : selectedMachine.area === "Llegada Materiales" ? (
-                                        <LlegadaMaterialesSubtasks
-                                            otId={selectedMachine.order.id}
-                                            orderStatus={selectedMachine.order.status}
-                                        />
+                                    ) : selectedWorkflowProgress ? (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Etapas Con Registro</p>
+                                                    <p className="text-lg font-bold text-slate-900">
+                                                        {selectedWorkflowProgress.processedCount}/{selectedWorkflowProgress.totalCount}
+                                                    </p>
+                                                </div>
+                                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Etapa Actual</p>
+                                                    <p className="text-lg font-bold text-slate-900">{selectedMachine.area}</p>
+                                                </div>
+                                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Etapas Omitidas</p>
+                                                    <p className="text-lg font-bold text-slate-900">{selectedWorkflowProgress.skippedCount}</p>
+                                                </div>
+                                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Operador</p>
+                                                    <p className="text-sm font-bold text-slate-900">{selectedMachine.order.operatorName}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                                <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                                                    <h5 className="font-bold text-slate-700 text-sm">Ejecución del Workflow</h5>
+                                                    <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 font-bold rounded-md">
+                                                        {selectedWorkflowProgress.totalCount} pasos
+                                                    </span>
+                                                </div>
+                                                <div className="divide-y divide-slate-100">
+                                                    {selectedWorkflowProgress.stages.map((stage) => (
+                                                        <div key={stage.stageName} className="px-5 py-3 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                                                            <div>
+                                                                <p className="font-medium text-slate-700 text-sm">{stage.stageName}</p>
+                                                                <p className="text-xs text-slate-400">
+                                                                    {formatStageWindow(stage.timestamps?.start, stage.timestamps?.end)}
+                                                                </p>
+                                                            </div>
+                                                            <span className={`text-xs px-2 py-0.5 font-bold rounded-md ${
+                                                                stage.state === "completed"
+                                                                    ? "bg-emerald-100 text-emerald-700"
+                                                                    : stage.state === "current"
+                                                                        ? "bg-indigo-100 text-indigo-700"
+                                                                        : stage.state === "skipped"
+                                                                            ? "bg-slate-100 text-slate-500"
+                                                                            : "bg-slate-50 text-slate-400"
+                                                            }`}>
+                                                                {stage.state === "completed"
+                                                                    ? "Completada"
+                                                                    : stage.state === "current"
+                                                                        ? "En curso"
+                                                                        : stage.state === "skipped"
+                                                                            ? "Omitida"
+                                                                            : "Pendiente"}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
                                     ) : (
                                         <div className="p-4 text-center text-sm text-slate-400 italic bg-slate-50 rounded-xl border border-slate-100">
                                             Etapa logística — sin métricas de producción.

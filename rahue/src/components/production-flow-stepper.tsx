@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { ProductStage, StageTimestamps } from "@/lib/demo-context";
 import type { StageDetail } from "@/lib/history-types";
+import { getWorkflowProgressSummary } from "@/lib/workflow-progress";
 
 interface ProductionFlowStepperProps {
   flow: ProductStage[];
@@ -23,22 +24,32 @@ export function ProductionFlowStepper({
 }: ProductionFlowStepperProps) {
     if (!flow || flow.length === 0) return null;
 
+    const workflowProgress = getWorkflowProgressSummary({
+        flow,
+        currentStageName,
+        status,
+        stageTimestamps,
+        stagesDetail,
+    });
+
     return (
         <div className="w-full overflow-x-auto">
             <div className="flex relative z-10 min-w-[540px] px-2 sm:px-4">
-                {flow.map((stage, index, flowArr) => {
-                    // Si el currentStageName es "COMPLETADO", consideramos que todos los pasos ya pasaron.
-                    const currentStageIndex = currentStageName === "COMPLETADO" ? flowArr.length : flowArr.indexOf(currentStageName as ProductStage);
-                    
-                    const isCompleted = index < currentStageIndex;
-                    const isCurrent = index === currentStageIndex;
+                {workflowProgress.stages.map((stageMeta, index, flowArr) => {
+                    const stage = stageMeta.stageName;
+                    const isCompleted = stageMeta.state === "completed";
+                    const isCurrent = stageMeta.state === "current";
+                    const isSkipped = stageMeta.state === "skipped";
                     const isLast = index === flowArr.length - 1;
-                    const timestamps = stageTimestamps?.[stage];
+                    const timestamps = stageMeta.timestamps;
+                    const nextState = flowArr[index + 1]?.state;
+                    const isConnectorCompleted = isCompleted && nextState === "completed";
+                    const isConnectorActive = isCompleted && nextState === "current";
 
                     let circleClasses = "w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm transition-all relative box-border ";
                     let textClasses = "mt-3 text-[11px] font-bold text-center max-w-[70px] leading-tight ";
 
-                    if (isCompleted || status === "COMPLETED") {
+                    if (isCompleted) {
                         circleClasses += "bg-emerald-500 text-white shadow-sm shadow-emerald-200";
                         textClasses += "text-emerald-700";
                     } else if (isCurrent) {
@@ -46,6 +57,9 @@ export function ProductionFlowStepper({
                             ? "bg-white border-[3px] border-indigo-600 ring-[6px] ring-indigo-50 shadow-sm" 
                             : "bg-white border-[3px] border-yellow-500 ring-[6px] ring-yellow-50 shadow-sm";
                         textClasses += status === "RUNNING" ? "text-indigo-700" : "text-yellow-700";
+                    } else if (isSkipped) {
+                        circleClasses += "bg-slate-100 border-2 border-slate-300 text-slate-400";
+                        textClasses += "text-slate-400";
                     } else {
                         circleClasses += "bg-white border-2 border-slate-200 text-slate-500";
                         textClasses += "text-slate-500";
@@ -59,12 +73,15 @@ export function ProductionFlowStepper({
                             {!isLast && (
                                 <div className="absolute top-4 sm:top-5 left-1/2 w-full h-[2px] bg-slate-200 -z-10" />
                             )}
-                            {!isLast && (isCompleted || status === "COMPLETED") && (
+                            {!isLast && isConnectorCompleted && (
                                 <div className="absolute top-4 sm:top-5 left-1/2 w-full h-[2px] bg-emerald-400 -z-10" />
+                            )}
+                            {!isLast && isConnectorActive && (
+                                <div className={`absolute top-4 sm:top-5 left-1/2 w-full h-[2px] -z-10 ${status === "RUNNING" ? "bg-indigo-300" : "bg-yellow-300"}`} />
                             )}
 
                             <div className={circleClasses}>
-                                {isCompleted || status === "COMPLETED" ? (
+                                {isCompleted ? (
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-4 h-4 sm:w-5 sm:h-5 relative z-10 text-white">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                     </svg>
@@ -84,12 +101,16 @@ export function ProductionFlowStepper({
                                     {isCurrent && <span className="block text-[11px] font-medium opacity-80 mt-1 font-normal">{status === "RUNNING" ? "(En Curso)" : status === "PAUSED" ? "(En Pausa)" : ""}</span>}
                                 </span>
                                 <div className="text-[11px] text-center mt-3 font-medium rounded text-slate-500 tracking-tight flex flex-col items-center gap-1.5 w-full">
-                                    {(isCompleted || status === "COMPLETED") && timestamps?.start && timestamps?.end ? (
+                                    {isCompleted && timestamps?.start && timestamps?.end ? (
                                         <div className="flex flex-col items-center justify-center space-y-0.5 mt-1">
                                             <span>{format(new Date(timestamps.start), "HH:mm")}</span>
                                             <span className="text-slate-300 font-light leading-none">|</span>
                                             <span>{format(new Date(timestamps.end), "HH:mm")}</span>
                                         </div>
+                                    ) : isCompleted && timestamps?.start ? (
+                                        <span className="text-slate-400 mt-1 text-[10px]">
+                                            Desde {format(new Date(timestamps.start), "HH:mm")}
+                                        </span>
                                     ) : isCurrent && timestamps?.start ? (
                                         <>
                                             <span className={`px-2 py-1 rounded-md font-bold text-[10px] w-full max-w-[90px] ${status === "RUNNING" ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-yellow-50 text-yellow-700 border border-yellow-100"}`}>
@@ -104,9 +125,13 @@ export function ProductionFlowStepper({
                                                 </span>
                                             )}
                                         </>
+                                    ) : isSkipped ? (
+                                        <span className="text-slate-300 italic mt-1 text-[10px]">
+                                            No ejecutada
+                                        </span>
                                     ) : (
                                         <span className="text-slate-300 italic mt-1 text-[10px]">
-                                            {isCompleted ? "Completado" : "Pendiente"}
+                                            Pendiente
                                         </span>
                                     )}
                                 </div>

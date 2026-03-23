@@ -2,7 +2,6 @@
 
 import { useDemo } from "@/lib/demo-context";
 import { useState, useEffect } from "react";
-import { PENDING_OTS, WORKERS } from "@/lib/mockOtData";
 
 interface ScannedOT {
   id: string;
@@ -13,7 +12,15 @@ interface ScannedOT {
 }
 
 export default function OperatorPage() {
-  const { machines, startMachineOrder, beginRealProduction, stopMachineOrder, pauseMachine, resumeMachine } = useDemo();
+  const {
+    machines,
+    pendingOts,
+    startMachineOrder,
+    beginRealProduction,
+    stopMachineOrder,
+    pauseMachine,
+    resumeMachine,
+  } = useDemo();
 
   const myMachine = machines.find(m => m.id === "machine-1");
   const orderStatus = myMachine?.order?.status;
@@ -60,7 +67,7 @@ export default function OperatorPage() {
     const outputs = parseInt(parts[1].trim());
     const target = parts.length >= 3 ? parseInt(parts[2].trim()) : 50000;
     if (!id || isNaN(outputs)) return null;
-    const pending = PENDING_OTS.find(p => p.id === id);
+    const pending = pendingOts.find(p => p.id === id);
     return {
       id,
       outputs: pending?.outputs ?? outputs,
@@ -405,16 +412,15 @@ export default function OperatorPage() {
           )}
         </div>
 
-        {/* Códigos de prueba (demo) */}
         <details className="rounded-xl border border-slate-200 overflow-hidden text-sm">
           <summary className="cursor-pointer select-none px-4 py-3 text-xs font-semibold text-slate-500 hover:bg-slate-50">
-            Códigos de prueba (demo)
+            OTs pendientes disponibles
           </summary>
           <div className="px-4 pb-4 pt-3 bg-slate-50 border-t border-slate-200 space-y-3">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">OTs disponibles</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Escaneo sugerido</p>
               <div className="space-y-1">
-                {PENDING_OTS.map(p => (
+                {pendingOts.map(p => (
                   <button
                     key={p.id}
                     onClick={() => setScannedOT({ id: p.id, outputs: p.outputs, target: p.target, client: p.client, product: p.product })}
@@ -424,21 +430,17 @@ export default function OperatorPage() {
                     <span className="text-slate-400 ml-2">— {p.client} / {p.product}</span>
                   </button>
                 ))}
+                {pendingOts.length === 0 && (
+                  <div className="rounded-lg bg-white border border-slate-200 px-3 py-2 text-xs text-slate-400">
+                    No hay OTs pendientes disponibles.
+                  </div>
+                )}
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Operadores</p>
-              <div className="space-y-1">
-                {WORKERS.slice(0, 4).map(w => (
-                  <button
-                    key={w.id}
-                    onClick={() => setScannedRut(w.rut)}
-                    className="w-full text-left rounded-lg bg-white border border-slate-200 px-3 py-2 text-xs hover:bg-indigo-50 hover:border-indigo-200 transition-colors group"
-                  >
-                    <span className="font-mono text-indigo-600 group-hover:text-indigo-700">{w.rut}</span>
-                    <span className="text-slate-400 ml-2">— {w.name}</span>
-                  </button>
-                ))}
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Credencial de operador</p>
+              <div className="rounded-lg bg-white border border-slate-200 px-3 py-2 text-xs text-slate-500">
+                Escanea la credencial real o ingresa el RUT manualmente.
               </div>
             </div>
           </div>

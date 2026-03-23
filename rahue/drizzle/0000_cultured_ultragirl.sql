@@ -21,6 +21,13 @@ CREATE TABLE "actividad_ot" (
 	CONSTRAINT "uq_actividad_ot_wf_etapa" UNIQUE("ot_id","workflow_etapa_id")
 );
 --> statement-breakpoint
+CREATE TABLE "categoria" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"nombre" text NOT NULL,
+	"descripcion" text,
+	CONSTRAINT "categoria_nombre_unique" UNIQUE("nombre")
+);
+--> statement-breakpoint
 CREATE TABLE "escaneo_barras" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tipo" text NOT NULL,
@@ -37,7 +44,7 @@ CREATE TABLE "etapa" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"nombre" text NOT NULL,
 	"descripcion" text,
-	"categoria" text DEFAULT 'otro' NOT NULL,
+	"categoria_id" uuid NOT NULL,
 	"tipo_metrica" text DEFAULT 'logistica' NOT NULL,
 	"unidad_display" text,
 	"icono" text,
@@ -87,7 +94,6 @@ CREATE TABLE "ot" (
 	"fecha_inicio" timestamp with time zone,
 	"fecha_termino" timestamp with time zone,
 	"notas" text,
-	"etapa_actual" text,
 	CONSTRAINT "ot_codigo_unique" UNIQUE("codigo")
 );
 --> statement-breakpoint
@@ -143,6 +149,7 @@ ALTER TABLE "actividad_ot" ADD CONSTRAINT "actividad_ot_maquina_id_maquina_id_fk
 ALTER TABLE "actividad_ot" ADD CONSTRAINT "actividad_ot_operador_id_usuario_id_fk" FOREIGN KEY ("operador_id") REFERENCES "public"."usuario"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "escaneo_barras" ADD CONSTRAINT "escaneo_barras_maquina_id_maquina_id_fk" FOREIGN KEY ("maquina_id") REFERENCES "public"."maquina"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "escaneo_barras" ADD CONSTRAINT "escaneo_barras_usuario_id_usuario_id_fk" FOREIGN KEY ("usuario_id") REFERENCES "public"."usuario"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "etapa" ADD CONSTRAINT "etapa_categoria_id_categoria_id_fk" FOREIGN KEY ("categoria_id") REFERENCES "public"."categoria"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "lectura_maquina" ADD CONSTRAINT "lectura_maquina_maquina_id_maquina_id_fk" FOREIGN KEY ("maquina_id") REFERENCES "public"."maquina"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "lectura_maquina" ADD CONSTRAINT "lectura_maquina_actividad_ot_id_actividad_ot_id_fk" FOREIGN KEY ("actividad_ot_id") REFERENCES "public"."actividad_ot"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "lectura_por_minuto" ADD CONSTRAINT "lectura_por_minuto_maquina_id_maquina_id_fk" FOREIGN KEY ("maquina_id") REFERENCES "public"."maquina"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

@@ -169,7 +169,7 @@ export function mapOtRowToDocument(row: OtRow): OTDocument {
   const currentStageName =
     row.estado === "completada"
       ? "COMPLETADO"
-      : row.etapaActual || lastStage?.stageName || flow[0] || "COMPLETADO";
+      : lastStage?.stageName || flow[0] || "COMPLETADO";
 
   const totalUnits = stages.reduce((sum, stage) => sum + stage.unitsProduced, 0);
   const totalStops = stages.reduce((sum, stage) => sum + stage.stops.length, 0);

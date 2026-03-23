@@ -6,8 +6,8 @@ El modelo se organiza en **5 capas** lógicas:
 
 | Capa | Tablas | Propósito |
 |------|--------|-----------|
-| 1. Catálogos | `etapa`, `tipo_producto`, `workflow_etapa` | Configuración de flujos productivos |
-| 2. Recursos | `maquina`, `usuario` | Máquinas de planta + operadores (Auth0) |
+| 1. Catálogos | `categoria`, `etapa`, `tipo_producto`, `workflow_etapa` | Configuración de flujos productivos |
+| 2. Recursos | `maquina`, `usuario` | Máquinas de planta + operadores (Supabase Auth) |
 | 3. Órdenes | `ot` | Órdenes de trabajo |
 | 4. Ejecución | `actividad_ot`, `parada` | Registro de producción en vivo |
 | 5. Lecturas | `lectura_maquina`, `lectura_por_minuto` | Datos de alta frecuencia de sensores |
@@ -32,8 +32,8 @@ Archivo Excalidraw: [`database-model.excalidraw`](./database-model.excalidraw)
         ▼                                                ▼
 ┌─────────────────┐    ┌──────────────────┐    ┌──────────────────┐
 │    maquina       │    │     usuario       │    │       ot         │
-│                  │    │    (Auth0)        │    │                  │
-│ etapa_id     FK  │    │ auth0_id         │    │ tipo_producto_id │
+│                  │    │ (Supabase Auth)   │    │                  │
+│ etapa_id     FK  │    │ supabase_id      │    │ tipo_producto_id │
 │ tipo_metrica     │    │ nombre           │    │ codigo (escaneo) │
 │ unidad_metrica   │    │ rut (escaneo)    │    │ cliente          │
 │                  │    │ rol              │    │ meta_unidades    │
@@ -143,13 +143,13 @@ El flujo de una `actividad_ot`:
          [TERMINAR] → estado: "completada"
 ```
 
-### 4. Auth0
+### 4. Supabase Auth
 
 - **NO** almacenamos contraseñas ni tokens en nuestra BD.
-- La tabla `usuario` es un **perfil operativo** sincronizado desde Auth0.
-- El campo `auth0_id` (ej: `auth0|abc123`) vincula con Auth0.
+- La tabla `usuario` es un **perfil operativo** sincronizado desde Supabase Auth.
+- El campo `supabase_id` vincula con Supabase Auth.
 - El campo `rut` permite identificar operadores por escaneo de credencial.
-- Roles (`admin`, `supervisor`, `operador`) se manejan en nuestra BD (o en Auth0 metadata).
+- Roles (`admin`, `supervisor`, `operador`) se manejan en nuestra BD.
 
 ### 5. Código de barras
 
@@ -175,7 +175,7 @@ El escaneo de OT ya funciona en el operador. El modelo soporta esto:
 |-----------|-------------|---------|
 | `golpes` (solo troqueladoras) | `lectura_maquina` (genérica) | Soporta todos los tipos de máquina |
 | Sin workflows | `tipo_producto` + `workflow_etapa` | Define flujos por producto |
-| Sin usuarios | `usuario` (Auth0) | Operadores, supervisores, admin |
+| Sin usuarios | `usuario` (Supabase Auth) | Operadores, supervisores, admin |
 | `maquina` (id, tipo) | `maquina` (id, nombre, etapa_id, tipo_metrica) | Más contexto por máquina |
 | Sin paradas | `parada` | Registro detallado de pausas |
 | Sin merma/warmup | `actividad_ot.hora_inicio_produccion` + `es_merma` | Tracking de merma |
@@ -184,16 +184,17 @@ El escaneo de OT ya funciona en el operador. El modelo soporta esto:
 
 ---
 
-## Tablas totales: 10
+## Tablas totales: 12
 
-1. `etapa` - catálogo de etapas productivas
-2. `tipo_producto` - workflows / tipos de producto
-3. `workflow_etapa` - etapas por workflow (junction)
-4. `maquina` - máquinas de planta
-5. `usuario` - perfiles operativos (Auth0)
-6. `ot` - órdenes de trabajo
-7. `actividad_ot` - ejecución en planta
-8. `parada` - pausas/paradas
-9. `lectura_maquina` - lecturas de sensores (alta frecuencia)
-10. `lectura_por_minuto` - agregación para dashboards
-11. `escaneo_barras` - auditoría de escaneos (auxiliar)
+1. `categoria` - categorías de etapas
+2. `etapa` - catálogo de etapas productivas
+3. `tipo_producto` - workflows / tipos de producto
+4. `workflow_etapa` - etapas por workflow (junction)
+5. `maquina` - máquinas de planta
+6. `usuario` - perfiles operativos (Supabase Auth)
+7. `ot` - órdenes de trabajo
+8. `actividad_ot` - ejecución en planta
+9. `parada` - pausas/paradas
+10. `lectura_maquina` - lecturas de sensores (alta frecuencia)
+11. `lectura_por_minuto` - agregación para dashboards
+12. `escaneo_barras` - auditoría de escaneos (auxiliar)

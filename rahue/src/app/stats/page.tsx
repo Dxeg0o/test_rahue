@@ -42,12 +42,6 @@ export default function StatsPage() {
           <p className="text-sm text-slate-500">Análisis histórico y rendimiento</p>
         </div>
         <div className="flex gap-4">
-             <button
-            onClick={() => router.push("/operator")}
-            className="rounded-lg bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
-          >
-            Ir a Operador
-          </button>
            <button
             onClick={() => router.push("/")}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"

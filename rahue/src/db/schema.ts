@@ -8,9 +8,8 @@ import {
   real,
   unique,
   index,
-  check,
 } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 
 // ============================================================================
 // CAPA 1: CATÁLOGOS
@@ -145,7 +144,6 @@ export const ot = pgTable(
     fechaInicio: timestamp("fecha_inicio", { withTimezone: true }),
     fechaTermino: timestamp("fecha_termino", { withTimezone: true }),
     notas: text("notas"),
-    etapaActual: text("etapa_actual"), // cache desnormalizado
   },
   (table) => [
     index("idx_ot_estado").on(table.estado),

@@ -1,5 +1,5 @@
 {
-  "id": "d21222aa-bae8-4694-954a-a1fc49cef596",
+  "id": "38736aaa-657a-45f7-9018-9707f95e577a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -287,6 +287,46 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.categoria": {
+      "name": "categoria",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "categoria_nombre_unique": {
+          "name": "categoria_nombre_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nombre"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.escaneo_barras": {
       "name": "escaneo_barras",
       "schema": "",
@@ -406,12 +446,11 @@
           "primaryKey": false,
           "notNull": false
         },
-        "categoria": {
-          "name": "categoria",
-          "type": "text",
+        "categoria_id": {
+          "name": "categoria_id",
+          "type": "uuid",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'otro'"
+          "notNull": true
         },
         "tipo_metrica": {
           "name": "tipo_metrica",
@@ -434,7 +473,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "etapa_categoria_id_categoria_id_fk": {
+          "name": "etapa_categoria_id_categoria_id_fk",
+          "tableFrom": "etapa",
+          "tableTo": "categoria",
+          "columnsFrom": [
+            "categoria_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "etapa_nombre_unique": {
@@ -864,12 +917,6 @@
         },
         "notas": {
           "name": "notas",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "etapa_actual": {
-          "name": "etapa_actual",
           "type": "text",
           "primaryKey": false,
           "notNull": false

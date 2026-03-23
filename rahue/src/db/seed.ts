@@ -183,33 +183,33 @@ async function seed() {
     // Completadas (historial)
     {
       codigo: "OT-3001", tipoProductoId: W["Cono"],             cliente: "Nestlé Chile",    sku: "CNO-001", metaUnidades: 50000,
-      estado: "completada", etapaActual: null,
+      estado: "completada",
       fechaCreacion: daysAgo(7), fechaInicio: daysAgo(7), fechaTermino: daysAgo(6),
     },
     {
       codigo: "OT-3002", tipoProductoId: W["Tapas Troqueladas"], cliente: "Soprole",        sku: "TT-442",  metaUnidades: 30000,
-      estado: "completada", etapaActual: null,
+      estado: "completada",
       fechaCreacion: daysAgo(5), fechaInicio: daysAgo(5), fechaTermino: daysAgo(4),
     },
     {
       codigo: "OT-3003", tipoProductoId: W["Tapas"],             cliente: "Loncoleche",     sku: "TAP-220", metaUnidades: 20000,
-      estado: "completada", etapaActual: null,
+      estado: "completada",
       fechaCreacion: daysAgo(3), fechaInicio: daysAgo(3), fechaTermino: daysAgo(2),
     },
     // En proceso (activas hoy)
     {
       codigo: "OT-3004", tipoProductoId: W["Cono"],              cliente: "Nestlé Chile",   sku: "CNO-002", metaUnidades: 45000,
-      estado: "en_proceso", etapaActual: "Troquelado",
+      estado: "en_proceso",
       fechaCreacion: daysAgo(1), fechaInicio: hoursAgo(6),
     },
     {
       codigo: "OT-3005", tipoProductoId: W["Tapas"],             cliente: "Colún",          sku: "TAP-331", metaUnidades: 25000,
-      estado: "en_proceso", etapaActual: "Impresión",
+      estado: "en_proceso",
       fechaCreacion: hoursAgo(8), fechaInicio: hoursAgo(7),
     },
     {
       codigo: "OT-3006", tipoProductoId: W["Tapas Troqueladas"], cliente: "Soprole",        sku: "TT-450",  metaUnidades: 15000,
-      estado: "en_proceso", etapaActual: "Troquelado",
+      estado: "en_proceso",
       fechaCreacion: hoursAgo(4), fechaInicio: hoursAgo(3),
     },
     // Pendientes (sin iniciar)

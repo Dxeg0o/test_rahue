@@ -1,13 +1,19 @@
 -- ============================================================================
 -- RAHUE - Modelo de Base de Datos v2.0 (Workflows Flexibles)
 -- ============================================================================
--- Autenticación: Auth0 (externo)
+-- Autenticación: Supabase Auth (externo)
 -- Base de datos: PostgreSQL (Supabase o similar)
 -- ============================================================================
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │  CAPA 1: CATÁLOGOS (configuración del sistema)                        │
 -- └─────────────────────────────────────────────────────────────────────────┘
+
+CREATE TABLE categoria (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre          TEXT NOT NULL UNIQUE,
+    descripcion     TEXT
+);
 
 -- Etapas del proceso productivo.
 -- Cada etapa puede tener un tipo de métrica distinto:
@@ -19,8 +25,7 @@ CREATE TABLE etapa (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre          TEXT NOT NULL UNIQUE,
     descripcion     TEXT,
-    categoria       TEXT NOT NULL DEFAULT 'otro'
-                    CHECK (categoria IN ('logistica', 'impresion', 'troquelado', 'formado', 'control_calidad', 'empaque', 'otro')),
+    categoria_id    UUID NOT NULL REFERENCES categoria(id),
     tipo_metrica    TEXT NOT NULL DEFAULT 'logistica'
                     CHECK (tipo_metrica IN ('golpes_min', 'metros_min', 'unidades_min', 'logistica')),
     unidad_display  TEXT,  -- "gpm", "m/min", "u/min", NULL para logística
@@ -91,14 +96,14 @@ CREATE INDEX idx_maquina_etapa ON maquina(etapa_id);
 
 
 -- Usuarios del sistema.
--- La autenticación la maneja Auth0. Aquí guardamos el perfil operativo.
+-- La autenticación la maneja Supabase Auth. Aquí guardamos el perfil operativo.
 -- Roles:
 --   - "admin"      → acceso total, configuración de workflows
 --   - "supervisor"  → vista de gestión, historial, dashboard
 --   - "operador"   → vista de operador, escaneo de OT, control de máquina
 CREATE TABLE usuario (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth0_id        TEXT UNIQUE NOT NULL,    -- sub de Auth0 (ej: "auth0|abc123")
+    supabase_id     TEXT UNIQUE NOT NULL,    -- sub de Supabase Auth
     nombre          TEXT NOT NULL,
     email           TEXT,
     rut             TEXT UNIQUE,             -- para escaneo de credencial
@@ -109,7 +114,7 @@ CREATE TABLE usuario (
     updated_at      TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_usuario_auth0 ON usuario(auth0_id);
+CREATE INDEX idx_usuario_supabase ON usuario(supabase_id);
 CREATE INDEX idx_usuario_rut ON usuario(rut);
 
 
@@ -133,10 +138,7 @@ CREATE TABLE ot (
     fecha_creacion      TIMESTAMPTZ DEFAULT now(),
     fecha_inicio        TIMESTAMPTZ,            -- cuando se empezó a producir
     fecha_termino       TIMESTAMPTZ,            -- cuando se completó
-    notas               TEXT,
-
-    -- Campo desnormalizado para búsquedas rápidas
-    etapa_actual        TEXT                    -- nombre de la etapa en curso (cache)
+    notas               TEXT
 );
 
 CREATE INDEX idx_ot_estado ON ot(estado);
@@ -351,9 +353,9 @@ WHERE a.estado IN ('calentando', 'produciendo', 'pausada');
 -- │  NOTAS DE DISEÑO                                                      │
 -- └─────────────────────────────────────────────────────────────────────────┘
 --
--- 1. AUTH0
---    - La tabla `usuario` se sincroniza desde Auth0 vía webhook o al login.
---    - El campo `auth0_id` es el identificador principal para autenticación.
+-- 1. SUPABASE AUTH
+--    - La tabla `usuario` se sincroniza desde Supabase Auth.
+--    - El campo `supabase_id` es el identificador principal para autenticación.
 --    - El campo `rut` permite identificar operadores vía escaneo de credencial.
 --
 -- 2. MÉTRICAS POR TIPO DE MÁQUINA

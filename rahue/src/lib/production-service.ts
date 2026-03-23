@@ -234,6 +234,20 @@ function findFirstPendingWorkflowStep(
   return null;
 }
 
+function findPendingWorkflowSteps(
+  workflowSteps: WorkflowStepSnapshot[],
+  activities: ActivitySnapshot[]
+) {
+  return workflowSteps.filter(
+    (step) =>
+      !activities.some(
+        (activity) =>
+          activityMatchesWorkflowStep(activity, step) &&
+          (activity.status === "completada" || activity.completedAt !== null)
+      )
+  );
+}
+
 async function getOtByCode(tx: Tx, otCode: string): Promise<OtSnapshot> {
   const found = await tx.query.ot.findFirst({
     where: (currentOt, { eq }) => eq(currentOt.codigo, otCode),
@@ -417,6 +431,27 @@ async function normalizeFinishedActivities(tx: Tx, otId: string) {
   `);
 }
 
+async function loadMachineSnapshot(tx: Tx, machineId: string) {
+  const machine = await tx.query.maquina.findFirst({
+    where: (currentMachine, { eq }) => eq(currentMachine.id, machineId),
+    with: { etapa: true },
+  });
+
+  if (!machine) {
+    throw new MachineValidationError(
+      `La máquina "${machineId}" no existe en la base.`
+    );
+  }
+
+  if (!machine.activa) {
+    throw new MachineValidationError(
+      `La máquina "${machineId}" no está activa.`
+    );
+  }
+
+  return machine;
+}
+
 async function resolveMachineId(
   tx: Tx,
   workflowStep: WorkflowStepSnapshot,
@@ -425,6 +460,13 @@ async function resolveMachineId(
   const normalizedMachineId = machineId?.trim() || null;
 
   if (!workflowStep.requiresMachine) {
+    if (normalizedMachineId) {
+      const machine = await loadMachineSnapshot(tx, normalizedMachineId);
+      throw new MachineValidationError(
+        `La OT todavía espera "${workflowStep.stageName}", que no usa máquina. No puedes iniciarla desde "${machine.id}" (${machine.nombre}).`
+      );
+    }
+
     return null;
   }
 
@@ -434,22 +476,7 @@ async function resolveMachineId(
     );
   }
 
-  const machine = await tx.query.maquina.findFirst({
-    where: (currentMachine, { eq }) => eq(currentMachine.id, normalizedMachineId),
-    with: { etapa: true },
-  });
-
-  if (!machine) {
-    throw new MachineValidationError(
-      `La máquina "${normalizedMachineId}" no existe en la base.`
-    );
-  }
-
-  if (!machine.activa) {
-    throw new MachineValidationError(
-      `La máquina "${normalizedMachineId}" no está activa.`
-    );
-  }
+  const machine = await loadMachineSnapshot(tx, normalizedMachineId);
 
   if (machine.etapaId !== workflowStep.etapaId) {
     throw new MachineValidationError(
@@ -610,16 +637,35 @@ export async function startActividadOt({
       );
     }
 
-    const resolvedMachineId = await resolveMachineId(tx, nextStep, machineId);
+    const normalizedMachineId = machineId?.trim() || null;
+    let selectedStep = nextStep;
+
+    if (normalizedMachineId) {
+      const machine = await loadMachineSnapshot(tx, normalizedMachineId);
+      const pendingSteps = findPendingWorkflowSteps(workflowSteps, activities);
+      const machineStep = pendingSteps.find(
+        (step) => step.etapaId === machine.etapaId
+      );
+
+      if (!machineStep) {
+        throw new MachineValidationError(
+          `La máquina "${machine.id}" (${machine.nombre}) no corresponde a ninguna etapa pendiente de esta OT.`
+        );
+      }
+
+      selectedStep = machineStep;
+    }
+
+    const resolvedMachineId = await resolveMachineId(tx, selectedStep, machineId);
     const activityStartedAt = startedAt ?? new Date();
 
     const [createdActivity] = await tx
       .insert(actividadOt)
       .values({
         otId: currentOt.id,
-        etapaId: nextStep.etapaId,
-        workflowEtapaId: nextStep.workflowEtapaId,
-        ordenEtapa: nextStep.order,
+        etapaId: selectedStep.etapaId,
+        workflowEtapaId: selectedStep.workflowEtapaId,
+        ordenEtapa: selectedStep.order,
         maquinaId: resolvedMachineId,
         operadorId: operatorId,
         horaInicio: activityStartedAt,
@@ -633,7 +679,7 @@ export async function startActividadOt({
       actividadId: createdActivity.id,
       otId: currentOt.id,
       otCode: currentOt.code,
-      stageName: nextStep.stageName,
+      stageName: selectedStep.stageName,
       activityStatus: "calentando",
       otStatus: progress.status,
       currentStageName: progress.currentStageName,

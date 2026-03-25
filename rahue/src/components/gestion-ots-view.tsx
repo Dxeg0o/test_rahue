@@ -6,7 +6,7 @@ import { useDemo } from "@/lib/demo-context";
 import type { OTDocument } from "@/lib/history-types";
 import { OtDetailCard } from "./ot-detail-card";
 
-type OTTab = "pendientes" | "activas" | "historial";
+type OTTab = "pendientes" | "activas" | "esperando" | "historial";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -58,7 +58,7 @@ function StatCard({ label, value, sublabel, accent }: StatCardProps) {
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 export function GestionOtsView() {
-  const { machines, pendingOts, plantStats } = useDemo();
+  const { machines, pendingOts, waitingOts, plantStats } = useDemo();
   const [tab, setTab] = useState<OTTab>("pendientes");
   const [search, setSearch] = useState("");
   const [selectedOtCode, setSelectedOtCode] = useState<string | null>(null);
@@ -107,6 +107,13 @@ export function GestionOtsView() {
       ot.product.toLowerCase().includes(search.toLowerCase())
   );
 
+  const filteredWaiting = waitingOts.filter(
+    (ot) =>
+      ot.id.toLowerCase().includes(search.toLowerCase()) ||
+      ot.client.toLowerCase().includes(search.toLowerCase()) ||
+      ot.product.toLowerCase().includes(search.toLowerCase())
+  );
+
   const filteredActive = activeMachines.filter(
     (m) =>
       m.order!.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -117,6 +124,7 @@ export function GestionOtsView() {
   const tabs: { id: OTTab; label: string; count: number }[] = [
     { id: "pendientes", label: "Sin Comenzar", count: pendingOts.length },
     { id: "activas",    label: "En Proceso",   count: activeMachines.length },
+    { id: "esperando",  label: "Esperando",    count: waitingOts.length },
     { id: "historial",  label: "Historial",    count: historicalOts?.length ?? plantStats.completedWeek },
   ];
 
@@ -191,9 +199,52 @@ export function GestionOtsView() {
         </div>
 
         {/* Table */}
-        {tab === "historial" ? (
+        {tab === "historial" || tab === "esperando" ? (
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {isHistoricalLoading ? (
+            {tab === "esperando" ? (
+              filteredWaiting.length === 0 ? (
+                <EmptyState message="No hay OTs esperando entre pasos" />
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                      <Th>Orden</Th>
+                      <Th>Cliente</Th>
+                      <Th>Producto / SKU</Th>
+                      <Th>Meta</Th>
+                      <Th>Estado</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredWaiting.map((ot, i) => (
+                      <tr
+                        key={ot.id}
+                        onClick={() => setSelectedOtCode(ot.id)}
+                        className={`cursor-pointer border-b border-slate-50 transition-colors hover:bg-slate-50 ${
+                          i === filteredWaiting.length - 1 ? "border-b-0" : ""
+                        }`}
+                      >
+                        <td className="px-5 py-3.5 font-mono font-bold text-slate-900">{ot.id}</td>
+                        <td className="px-5 py-3.5 text-slate-700">{ot.client}</td>
+                        <td className="px-5 py-3.5">
+                          <p className="font-medium text-slate-800">{ot.product}</p>
+                          <p className="text-xs text-slate-400 font-mono">{ot.sku}</p>
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-700">
+                          {ot.target.toLocaleString("es-CL")} und.
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-sky-50 text-sky-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                            Esperando
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
+            ) : isHistoricalLoading ? (
               <div className="py-16 text-center text-sm text-slate-400">
                 Cargando historial...
               </div>

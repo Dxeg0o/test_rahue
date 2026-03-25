@@ -117,6 +117,7 @@ export interface PlantStats {
 interface DemoContextType {
   machines: MachineState[];
   pendingOts: PendingOT[];
+  waitingOts: PendingOT[];
   plantStats: PlantStats;
   stageCategories: Record<string, string>;
   step: DemoStep;
@@ -175,6 +176,7 @@ function deserializeMachine(raw: Record<string, unknown>): MachineState {
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [machines, setMachines] = useState<MachineState[]>([]);
   const [pendingOts, setPendingOts] = useState<PendingOT[]>([]);
+  const [waitingOts, setWaitingOts] = useState<PendingOT[]>([]);
   const [plantStats, setPlantStats] = useState<PlantStats>({ completedToday: 0, completedWeek: 0 });
   const [stageCategories, setStageCategories] = useState<Record<string, string>>({});
   const [step, setStep] = useState<DemoStep>("INTRO");
@@ -190,6 +192,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         (data.machines ?? []).map((m: Record<string, unknown>) => deserializeMachine(m))
       );
       if (data.pendingOts) setPendingOts(data.pendingOts);
+      if (data.waitingOts) setWaitingOts(data.waitingOts);
       if (data.stats) setPlantStats(data.stats);
       if (data.stageCategories) setStageCategories(data.stageCategories);
       setLoaded(true);
@@ -338,6 +341,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       value={{
         machines,
         pendingOts,
+        waitingOts,
         plantStats,
         stageCategories,
         step,

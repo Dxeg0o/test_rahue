@@ -127,6 +127,13 @@ export async function GET() {
       orderBy: (o, { desc }) => [desc(o.fechaCreacion)],
     });
 
+    // 7b. Waiting OTs (between steps)
+    const waitingOts = await db.query.ot.findMany({
+      where: (o, { eq }) => eq(o.estado, "esperando"),
+      with: { tipoProducto: true },
+      orderBy: (o, { desc }) => [desc(o.fechaCreacion)],
+    });
+
     // 8. Completed OTs count (today)
     const completedOts = await db.query.ot.findMany({
       where: (o, { eq }) => eq(o.estado, "historial"),
@@ -156,6 +163,14 @@ export async function GET() {
       {
         machines: result,
         pendingOts: pendingOts.map((o) => ({
+          id: o.codigo,
+          client: o.cliente,
+          product: o.tipoProducto.nombre,
+          sku: o.sku || "",
+          target: o.metaUnidades || 0,
+          outputs: 1,
+        })),
+        waitingOts: waitingOts.map((o) => ({
           id: o.codigo,
           client: o.cliente,
           product: o.tipoProducto.nombre,

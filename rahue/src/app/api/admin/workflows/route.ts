@@ -45,11 +45,11 @@ export async function GET() {
     for (const wf of workflows) {
       const wfOts = allOts.filter((o) => o.tipoProductoId === wf.id);
       const active = wfOts.filter(
-        (o) => o.estado === "en_proceso" || o.estado === "pendiente"
+        (o) => o.estado === "en_proceso" || o.estado === "esperando" || o.estado === "sin_comenzar"
       ).length;
       const completedWeek = wfOts.filter(
         (o) =>
-          o.estado === "completada" &&
+          o.estado === "historial" &&
           o.fechaTermino &&
           new Date(o.fechaTermino) >= weekAgo
       );

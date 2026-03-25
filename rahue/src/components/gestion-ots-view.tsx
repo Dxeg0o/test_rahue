@@ -75,7 +75,7 @@ export function GestionOtsView() {
 
   const statsData = [
     {
-      label: "Pendientes",
+      label: "Sin Comenzar",
       value: pendingOts.length,
       sublabel: "por iniciar",
       accent: "text-amber-600",
@@ -115,9 +115,9 @@ export function GestionOtsView() {
   );
 
   const tabs: { id: OTTab; label: string; count: number }[] = [
-    { id: "pendientes", label: "Pendientes", count: pendingOts.length },
-    { id: "activas",    label: "En Proceso", count: activeMachines.length },
-    { id: "historial",  label: "Historial",  count: historicalOts?.length ?? plantStats.completedWeek },
+    { id: "pendientes", label: "Sin Comenzar", count: pendingOts.length },
+    { id: "activas",    label: "En Proceso",   count: activeMachines.length },
+    { id: "historial",  label: "Historial",    count: historicalOts?.length ?? plantStats.completedWeek },
   ];
 
   return (
@@ -247,7 +247,7 @@ export function GestionOtsView() {
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {tab === "pendientes" ? (
             filteredPending.length === 0 ? (
-              <EmptyState message="No hay OTs pendientes" />
+              <EmptyState message="No hay OTs sin comenzar" />
             ) : (
               <table className="w-full text-sm">
                 <thead>

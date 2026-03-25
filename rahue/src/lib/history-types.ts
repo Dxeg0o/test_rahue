@@ -24,7 +24,7 @@ export interface StageDetail {
 
 export interface OTDocument {
   id: string;
-  status: "pendiente" | "en_proceso" | "completada" | "cancelada";
+  status: "sin_comenzar" | "en_proceso" | "esperando" | "historial" | "cancelada";
   currentStageName: string | "COMPLETADO";
   createdAt: string;
   client: string;

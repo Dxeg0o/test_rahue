@@ -1,0 +1,1 @@
+ALTER TABLE "ot" ALTER COLUMN "estado" SET DEFAULT 'sin_comenzar';

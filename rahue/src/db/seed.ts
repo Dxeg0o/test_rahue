@@ -177,20 +177,20 @@ async function seed() {
   console.log("  📦 Órdenes de trabajo...");
 
   const otsData = await db.insert(ot).values([
-    // Completadas (historial)
+    // Historial (completadas)
     {
       codigo: "OT-3001", tipoProductoId: W["Cono"],             cliente: "Nestlé Chile",    sku: "CNO-001", metaUnidades: 50000,
-      estado: "completada",
+      estado: "historial",
       fechaCreacion: daysAgo(7), fechaInicio: daysAgo(7), fechaTermino: daysAgo(6),
     },
     {
       codigo: "OT-3002", tipoProductoId: W["Tapas Troqueladas"], cliente: "Soprole",        sku: "TT-442",  metaUnidades: 30000,
-      estado: "completada",
+      estado: "historial",
       fechaCreacion: daysAgo(5), fechaInicio: daysAgo(5), fechaTermino: daysAgo(4),
     },
     {
       codigo: "OT-3003", tipoProductoId: W["Tapas"],             cliente: "Loncoleche",     sku: "TAP-220", metaUnidades: 20000,
-      estado: "completada",
+      estado: "historial",
       fechaCreacion: daysAgo(3), fechaInicio: daysAgo(3), fechaTermino: daysAgo(2),
     },
     // En proceso (activas hoy)
@@ -221,28 +221,28 @@ async function seed() {
     },
     {
       codigo: "OT-3011", tipoProductoId: W["Cono"],              cliente: "Loncoleche",     sku: "CNO-011", metaUnidades: 35000,
-      estado: "en_proceso",
+      estado: "esperando",
       fechaCreacion: hoursAgo(3), fechaInicio: hoursAgo(2),
     },
-    // Pendientes (sin iniciar)
+    // Sin comenzar (pendientes)
     {
       codigo: "OT-3007", tipoProductoId: W["Cono"],              cliente: "Nestlé Chile",   sku: "CNO-003", metaUnidades: 60000,
-      estado: "pendiente",
+      estado: "sin_comenzar",
       fechaCreacion: hoursAgo(2),
     },
     {
       codigo: "OT-3008", tipoProductoId: W["Tapas"],             cliente: "Loncoleche",     sku: "TAP-221", metaUnidades: 18000,
-      estado: "pendiente",
+      estado: "sin_comenzar",
       fechaCreacion: minutesAgo(30),
     },
     {
       codigo: "OT-3012", tipoProductoId: W["Tapas Troqueladas"], cliente: "Soprole",        sku: "TT-460",  metaUnidades: 12000,
-      estado: "pendiente",
+      estado: "sin_comenzar",
       fechaCreacion: minutesAgo(45),
     },
     {
       codigo: "OT-3013", tipoProductoId: W["Cono"],              cliente: "Watts",          sku: "CNO-012", metaUnidades: 55000,
-      estado: "pendiente",
+      estado: "sin_comenzar",
       fechaCreacion: minutesAgo(15),
     },
   ]).returning();
@@ -684,7 +684,7 @@ async function seed() {
   console.log(`   ${allWfEtapas.length} pasos de workflow`);
   console.log(`   ${maquinas.length} máquinas`);
   console.log(`   ${usuarios.length} usuarios (1 admin, 2 supervisores, 5 operadores)`);
-  console.log(`   ${otsData.length} OTs (3 completadas, 6 en proceso, 4 pendientes)`);
+  console.log(`   ${otsData.length} OTs (3 historial, 5 en proceso, 1 esperando, 4 sin comenzar)`);
   console.log(`   ${actividadesInserted.length} actividades`);
   console.log(`   ${paradasData.length} paradas`);
   console.log(`   ${lpmData.length} lecturas agregadas por minuto`);

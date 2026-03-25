@@ -122,14 +122,14 @@ export async function GET() {
 
     // 7. Pending OTs for management sidebar
     const pendingOts = await db.query.ot.findMany({
-      where: (o, { eq }) => eq(o.estado, "pendiente"),
+      where: (o, { eq }) => eq(o.estado, "sin_comenzar"),
       with: { tipoProducto: true },
       orderBy: (o, { desc }) => [desc(o.fechaCreacion)],
     });
 
     // 8. Completed OTs count (today)
     const completedOts = await db.query.ot.findMany({
-      where: (o, { eq }) => eq(o.estado, "completada"),
+      where: (o, { eq }) => eq(o.estado, "historial"),
       columns: { id: true, fechaTermino: true },
     });
 

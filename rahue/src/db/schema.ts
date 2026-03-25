@@ -134,10 +134,10 @@ export const ot = pgTable(
     sku: text("sku"),
     metaUnidades: integer("meta_unidades"),
     estado: text("estado", {
-      enum: ["pendiente", "en_proceso", "completada", "cancelada"],
+      enum: ["sin_comenzar", "en_proceso", "esperando", "historial", "cancelada"],
     })
       .notNull()
-      .default("pendiente"),
+      .default("sin_comenzar"),
     fechaCreacion: timestamp("fecha_creacion", {
       withTimezone: true,
     }).defaultNow(),

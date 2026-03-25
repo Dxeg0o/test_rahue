@@ -15,6 +15,13 @@
       "when": 1774405716745,
       "tag": "0001_normal_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774406427257,
+      "tag": "0002_keen_puppet_master",
+      "breakpoints": true
     }
   ]
 }

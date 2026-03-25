@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { actividadOt, ot, parada, usuario } from "@/db/schema";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type OtStatus = "pendiente" | "en_proceso" | "completada" | "cancelada";
+type OtStatus = "sin_comenzar" | "en_proceso" | "esperando" | "historial" | "cancelada";
 type ActivityStatus = "calentando" | "produciendo" | "pausada" | "completada";
 
 export class ActivityNotFoundError extends Error {
@@ -521,7 +521,7 @@ function computeOtProgress(
 
   if (sortedActivities.length === 0) {
     return {
-      status: "pendiente",
+      status: "sin_comenzar",
       currentStageName: workflowSteps[0]?.stageName ?? null,
       startedAt: null,
       completedAt: null,
@@ -530,7 +530,7 @@ function computeOtProgress(
 
   if (nextPendingStep) {
     return {
-      status: "en_proceso",
+      status: "esperando",
       currentStageName: nextPendingStep.stageName,
       startedAt,
       completedAt: null,
@@ -538,7 +538,7 @@ function computeOtProgress(
   }
 
   return {
-    status: "completada",
+    status: "historial",
     currentStageName: null,
     startedAt,
     completedAt,
@@ -886,7 +886,7 @@ export async function completeActividadOt({
       otId: currentOt.id,
       otCode: currentOt.code,
       activityCompletedAt: effectiveCompletedAt,
-      otCompleted: progress.status === "completada",
+      otCompleted: progress.status === "historial",
       otStatus: progress.status,
       currentStageName: progress.currentStageName,
     };

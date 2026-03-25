@@ -133,8 +133,8 @@ CREATE TABLE ot (
     cliente             TEXT NOT NULL,
     sku                 TEXT,
     meta_unidades       INT,                    -- unidades objetivo
-    estado              TEXT NOT NULL DEFAULT 'pendiente'
-                        CHECK (estado IN ('pendiente', 'en_proceso', 'completada', 'cancelada')),
+    estado              TEXT NOT NULL DEFAULT 'sin_comenzar'
+                        CHECK (estado IN ('sin_comenzar', 'en_proceso', 'esperando', 'historial', 'cancelada')),
     fecha_creacion      TIMESTAMPTZ DEFAULT now(),
     fecha_inicio        TIMESTAMPTZ,            -- cuando se empezó a producir
     fecha_termino       TIMESTAMPTZ,            -- cuando se completó

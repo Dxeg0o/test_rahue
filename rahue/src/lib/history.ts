@@ -167,7 +167,7 @@ export function mapOtRowToDocument(row: OtRow): OTDocument {
   const lastStage = stages[stages.length - 1];
   const measurableStages = stages.filter((stage) => stage.averageSpeed > 0);
   const currentStageName =
-    row.estado === "completada"
+    row.estado === "historial"
       ? "COMPLETADO"
       : lastStage?.stageName || flow[0] || "COMPLETADO";
 
@@ -224,7 +224,7 @@ export function mapOtRowToDocument(row: OtRow): OTDocument {
 export async function fetchCompletedOtDocuments() {
   const rows = await fetchOtRows();
   return rows
-    .filter((row) => row.estado === "completada")
+    .filter((row) => row.estado === "historial")
     .map(mapOtRowToDocument);
 }
 

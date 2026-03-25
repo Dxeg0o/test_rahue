@@ -18,7 +18,7 @@ export function OtDetailCard({ ot, onClose, className = "" }: OtDetailCardProps)
   if (!ot) return null;
 
   const statusConfig =
-    ot.status === "completada"
+    ot.status === "historial"
       ? {
           label: "Completada",
           badgeClass:
@@ -32,19 +32,26 @@ export function OtDetailCard({ ot, onClose, className = "" }: OtDetailCardProps)
               "bg-indigo-500/20 border border-indigo-500/30 text-indigo-300",
             flowStatus: "RUNNING" as const,
           }
-        : ot.status === "pendiente"
+        : ot.status === "esperando"
           ? {
-              label: "Pendiente",
+              label: "Esperando",
               badgeClass:
-                "bg-amber-500/20 border border-amber-500/30 text-amber-300",
+                "bg-sky-500/20 border border-sky-500/30 text-sky-300",
               flowStatus: "PAUSED" as const,
             }
-          : {
-              label: "Cancelada",
-              badgeClass:
-                "bg-red-500/20 border border-red-500/30 text-red-300",
-              flowStatus: "PAUSED" as const,
-            };
+          : ot.status === "sin_comenzar"
+            ? {
+                label: "Sin Comenzar",
+                badgeClass:
+                  "bg-amber-500/20 border border-amber-500/30 text-amber-300",
+                flowStatus: "PAUSED" as const,
+              }
+            : {
+                label: "Cancelada",
+                badgeClass:
+                  "bg-red-500/20 border border-red-500/30 text-red-300",
+                flowStatus: "PAUSED" as const,
+              };
 
   return (
     <div className={`flex flex-col h-full bg-white ${className}`}>

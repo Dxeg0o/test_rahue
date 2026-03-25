@@ -222,47 +222,20 @@ CREATE INDEX idx_parada_motivo ON parada(motivo);
 
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
--- │  CAPA 5: LECTURAS DE MÁQUINA (datos de alta frecuencia)               │
+-- │  CAPA 5: LECTURAS DE MÁQUINA (agregadas por minuto)                   │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
--- Lecturas individuales de máquina.
--- REEMPLAZA la tabla "golpes" del modelo anterior.
--- Es GENÉRICA: almacena cualquier tipo de lectura según la máquina.
---
--- Para troqueladoras: cada fila = 1 golpe (valor = 1)
--- Para impresoras: cada fila = lectura periódica (valor = metros avanzados)
--- Para formadoras: cada fila = lectura periódica (valor = unidades formadas)
---
--- NOTA: Esta tabla puede crecer MUCHO. Considerar:
---   - Particionamiento por timestamp (mensual o semanal)
---   - Retención de datos (archivar lecturas > 90 días)
---   - Índices parciales para consultas frecuentes
-CREATE TABLE lectura_maquina (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    maquina_id          TEXT NOT NULL REFERENCES maquina(id),
-    actividad_ot_id     UUID REFERENCES actividad_ot(id),   -- NULL si máquina idle
-    timestamp           TIMESTAMPTZ NOT NULL DEFAULT now(),
-    valor               FLOAT NOT NULL DEFAULT 1,           -- 1 para golpes, metros para impresoras
-    es_merma            BOOLEAN DEFAULT FALSE                -- true durante warmup
-);
-
--- Índices optimizados para queries frecuentes
-CREATE INDEX idx_lectura_maquina_ts ON lectura_maquina(maquina_id, timestamp DESC);
-CREATE INDEX idx_lectura_actividad ON lectura_maquina(actividad_ot_id, timestamp);
-CREATE INDEX idx_lectura_merma ON lectura_maquina(actividad_ot_id) WHERE es_merma = TRUE;
-
-
--- Lecturas agregadas por minuto (materialización para dashboards).
--- Se puede calcular con un cron job, trigger, o vista materializada.
--- Reduce millones de lecturas a miles de filas para gráficos de velocidad.
+-- Lecturas agregadas por minuto.
+-- Cada fila = un minuto de actividad en una máquina.
+-- conteo_lecturas = la velocidad por minuto (golpes/min, metros/min, unidades/min).
+-- La velocidad y el total_valor se calculan on-the-fly a partir de conteo_lecturas
+-- y el timestamp del minuto, junto con la unidad de medida de la máquina/etapa.
 CREATE TABLE lectura_por_minuto (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     maquina_id          TEXT NOT NULL REFERENCES maquina(id),
     actividad_ot_id     UUID REFERENCES actividad_ot(id),
     minuto              TIMESTAMPTZ NOT NULL,    -- timestamp truncado al minuto
-    total_valor         FLOAT NOT NULL,          -- suma de valores en ese minuto
-    conteo_lecturas     INT NOT NULL,            -- cantidad de lecturas
-    velocidad           FLOAT NOT NULL,          -- total_valor / 1 (rate por minuto)
+    conteo_lecturas     INT NOT NULL,            -- lecturas en ese minuto (= velocidad)
     es_merma            BOOLEAN DEFAULT FALSE,
 
     UNIQUE(maquina_id, minuto)
@@ -371,8 +344,8 @@ WHERE a.estado IN ('calentando', 'produciendo', 'pausada');
 --    - Las unidades de merma se calculan como la suma de lecturas con es_merma = TRUE.
 --
 -- 4. ESCALABILIDAD
---    - lectura_maquina: particionar por mes (CREATE TABLE ... PARTITION BY RANGE).
---    - lectura_por_minuto: materialización asíncrona cada 60 segundos.
+--    - lectura_por_minuto: una fila por minuto por máquina.
+--    - Considerar particionamiento por mes si el volumen crece.
 --    - Considerar TimescaleDB si el volumen de lecturas es muy alto.
 --
 -- 5. WORKFLOWS

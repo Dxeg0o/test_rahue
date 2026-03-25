@@ -236,28 +236,8 @@ export const parada = pgTable(
 );
 
 // ============================================================================
-// CAPA 5: LECTURAS DE MÁQUINA
+// CAPA 5: LECTURAS DE MÁQUINA (agregadas por minuto)
 // ============================================================================
-
-export const lecturaMaquina = pgTable(
-  "lectura_maquina",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    maquinaId: text("maquina_id")
-      .notNull()
-      .references(() => maquina.id),
-    actividadOtId: uuid("actividad_ot_id").references(() => actividadOt.id),
-    timestamp: timestamp("timestamp", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    valor: real("valor").notNull().default(1), // 1 para golpes, metros para impresoras
-    esMerma: boolean("es_merma").default(false),
-  },
-  (table) => [
-    index("idx_lectura_maquina_ts").on(table.maquinaId, table.timestamp),
-    index("idx_lectura_actividad").on(table.actividadOtId, table.timestamp),
-  ]
-);
 
 export const lecturaPorMinuto = pgTable(
   "lectura_por_minuto",
@@ -268,9 +248,7 @@ export const lecturaPorMinuto = pgTable(
       .references(() => maquina.id),
     actividadOtId: uuid("actividad_ot_id").references(() => actividadOt.id),
     minuto: timestamp("minuto", { withTimezone: true }).notNull(),
-    totalValor: real("total_valor").notNull(),
     conteoLecturas: integer("conteo_lecturas").notNull(),
-    velocidad: real("velocidad").notNull(),
     esMerma: boolean("es_merma").default(false),
   },
   (table) => [
@@ -342,7 +320,6 @@ export const maquinaRelations = relations(maquina, ({ one, many }) => ({
     references: [etapa.id],
   }),
   actividades: many(actividadOt),
-  lecturas: many(lecturaMaquina),
   lecturasPorMinuto: many(lecturaPorMinuto),
 }));
 
@@ -383,7 +360,6 @@ export const actividadOtRelations = relations(
       references: [usuario.id],
     }),
     paradas: many(parada),
-    lecturas: many(lecturaMaquina),
     lecturasPorMinuto: many(lecturaPorMinuto),
   })
 );
@@ -391,17 +367,6 @@ export const actividadOtRelations = relations(
 export const paradaRelations = relations(parada, ({ one }) => ({
   actividadOt: one(actividadOt, {
     fields: [parada.actividadOtId],
-    references: [actividadOt.id],
-  }),
-}));
-
-export const lecturaMaquinaRelations = relations(lecturaMaquina, ({ one }) => ({
-  maquina: one(maquina, {
-    fields: [lecturaMaquina.maquinaId],
-    references: [maquina.id],
-  }),
-  actividadOt: one(actividadOt, {
-    fields: [lecturaMaquina.actividadOtId],
     references: [actividadOt.id],
   }),
 }));

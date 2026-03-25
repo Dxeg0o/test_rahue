@@ -87,7 +87,7 @@ export async function GET() {
     }
 
     // 4. Readings for active activities (last 30 per activity)
-    const readingsMap = new Map<string, { minuto: Date | string; velocidad: number }[]>();
+    const readingsMap = new Map<string, { minuto: Date | string; conteoLecturas: number }[]>();
     const activeActIds = activeActivities.map((a) => a.id);
 
     if (activeActIds.length > 0) {
@@ -213,7 +213,7 @@ type Activity = Awaited<ReturnType<typeof db.query.actividadOt.findMany>>[0] & {
   paradas: Awaited<ReturnType<typeof db.query.parada.findMany>>;
 };
 type OtFull = Awaited<ReturnType<typeof fetchOtData>>[0];
-type ReadingRow = { minuto: Date | string; velocidad: number };
+type ReadingRow = { minuto: Date | string; conteoLecturas: number };
 
 function buildMachineState(
   m: Machine,
@@ -247,14 +247,14 @@ function buildMachineState(
   // History from readings
   const history: HistoryPoint[] = readings.map((r) => ({
     time: fmtTime(r.minuto),
-    speed: r.velocidad,
+    speed: r.conteoLecturas,
     target: act.velocidadObjetivo || 0,
   }));
 
   // Current speed: latest reading or activity average
   const latestReading = readings[readings.length - 1];
   const currentSpeed = machineStatus === "RUNNING"
-    ? (latestReading?.velocidad ?? act.velocidadPromedio ?? 0)
+    ? (latestReading?.conteoLecturas ?? act.velocidadPromedio ?? 0)
     : 0;
 
   // Stops on current activity

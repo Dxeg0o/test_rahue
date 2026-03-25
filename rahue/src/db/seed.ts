@@ -11,7 +11,6 @@ import {
   ot,
   actividadOt,
   parada,
-  lecturaMaquina,
   lecturaPorMinuto,
   escaneoBarras,
 } from "./schema";
@@ -55,7 +54,6 @@ async function seed() {
   console.log("  🧹 Limpiando datos existentes...");
   await db.delete(escaneoBarras);
   await db.delete(lecturaPorMinuto);
-  await db.delete(lecturaMaquina);
   await db.delete(parada);
   await db.delete(actividadOt);
   await db.delete(ot);
@@ -161,7 +159,6 @@ async function seed() {
   console.log(`     ✅ ${maquinas.length} máquinas\n`);
 
   // ── 5. Usuarios ──────────────────────────────────────────────────────
-  // supabase_id es placeholder — en prod se sincroniza desde Supabase Auth al login.
   console.log("  👤 Usuarios...");
   const usuarios = await db.insert(usuario).values([
     { supabaseId: "seed-admin-001",      nombre: "Carlos Mendoza",   email: "carlos@rahue.cl",    rut: "12345678-9", rol: "admin" },
@@ -212,6 +209,21 @@ async function seed() {
       estado: "en_proceso",
       fechaCreacion: hoursAgo(4), fechaInicio: hoursAgo(3),
     },
+    {
+      codigo: "OT-3009", tipoProductoId: W["Cono"],              cliente: "Watts",          sku: "CNO-010", metaUnidades: 40000,
+      estado: "en_proceso",
+      fechaCreacion: daysAgo(2), fechaInicio: hoursAgo(5),
+    },
+    {
+      codigo: "OT-3010", tipoProductoId: W["Tapas"],             cliente: "Danone Chile",   sku: "TAP-500", metaUnidades: 22000,
+      estado: "en_proceso",
+      fechaCreacion: hoursAgo(5), fechaInicio: hoursAgo(4),
+    },
+    {
+      codigo: "OT-3011", tipoProductoId: W["Cono"],              cliente: "Loncoleche",     sku: "CNO-011", metaUnidades: 35000,
+      estado: "en_proceso",
+      fechaCreacion: hoursAgo(3), fechaInicio: hoursAgo(2),
+    },
     // Pendientes (sin iniciar)
     {
       codigo: "OT-3007", tipoProductoId: W["Cono"],              cliente: "Nestlé Chile",   sku: "CNO-003", metaUnidades: 60000,
@@ -222,6 +234,16 @@ async function seed() {
       codigo: "OT-3008", tipoProductoId: W["Tapas"],             cliente: "Loncoleche",     sku: "TAP-221", metaUnidades: 18000,
       estado: "pendiente",
       fechaCreacion: minutesAgo(30),
+    },
+    {
+      codigo: "OT-3012", tipoProductoId: W["Tapas Troqueladas"], cliente: "Soprole",        sku: "TT-460",  metaUnidades: 12000,
+      estado: "pendiente",
+      fechaCreacion: minutesAgo(45),
+    },
+    {
+      codigo: "OT-3013", tipoProductoId: W["Cono"],              cliente: "Watts",          sku: "CNO-012", metaUnidades: 55000,
+      estado: "pendiente",
+      fechaCreacion: minutesAgo(15),
     },
   ]).returning();
 
@@ -237,7 +259,7 @@ async function seed() {
 
   const actividades: (typeof actividadOt.$inferInsert)[] = [];
 
-  // OT-3001 (Cono, completada) — todas las etapas completadas
+  // ── OT-3001 (Cono, completada) — todas las etapas completadas ──
   const ot3001 = OT["OT-3001"];
   actividades.push(
     { otId: ot3001.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Cono"],1)?.id, ordenEtapa: 1,
@@ -272,7 +294,69 @@ async function seed() {
       estado: "completada", horaInicio: new Date(daysAgo(6).getTime() + 23*3600*1000), horaTermino: new Date(daysAgo(6).getTime() + 25*3600*1000) },
   );
 
-  // OT-3004 (Cono, en proceso) — llegada completa, impresión completa, troquelado activo
+  // ── OT-3002 (Tapas Troqueladas, completada) — cadena completa ──
+  const ot3002 = OT["OT-3002"];
+  actividades.push(
+    { otId: ot3002.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Tapas Troqueladas"],1)?.id, ordenEtapa: 1,
+      estado: "completada", horaInicio: daysAgo(5), horaTermino: new Date(daysAgo(5).getTime() + 45*60*1000) },
+    { otId: ot3002.id, etapaId: E["Impresión"].id,          workflowEtapaId: getWE(W["Tapas Troqueladas"],2)?.id, maquinaId: "impresion-1", operadorId: U["Valentina López"], ordenEtapa: 2,
+      velocidadObjetivo: 75,
+      horaInicio: new Date(daysAgo(5).getTime() + 1*3600*1000),
+      horaInicioProduccion: new Date(daysAgo(5).getTime() + 1.25*3600*1000),
+      horaTermino: new Date(daysAgo(5).getTime() + 5*3600*1000),
+      unidadesProducidas: 29000, unidadesMerma: 600,
+      velocidadPromedio: 74, velocidadMin: 62, velocidadMax: 82, desviacionEstandar: 4.5,
+      estado: "completada" },
+    { otId: ot3002.id, etapaId: E["Troquelado"].id,         workflowEtapaId: getWE(W["Tapas Troqueladas"],3)?.id, maquinaId: "troquel-2",   operadorId: U["Andrés Castro"],  ordenEtapa: 3,
+      salidasPorGolpe: 2, velocidadObjetivo: 115,
+      horaInicio: new Date(daysAgo(5).getTime() + 6*3600*1000),
+      horaInicioProduccion: new Date(daysAgo(5).getTime() + 6.5*3600*1000),
+      horaTermino: new Date(daysAgo(5).getTime() + 12*3600*1000),
+      unidadesProducidas: 30000, unidadesMerma: 900,
+      velocidadPromedio: 112, velocidadMin: 96, velocidadMax: 124, desviacionEstandar: 5.8,
+      estado: "completada" },
+    { otId: ot3002.id, etapaId: E["Tránsito a Bodega"].id,  workflowEtapaId: getWE(W["Tapas Troqueladas"],4)?.id, ordenEtapa: 4,
+      estado: "completada", horaInicio: new Date(daysAgo(5).getTime() + 13*3600*1000), horaTermino: new Date(daysAgo(5).getTime() + 14*3600*1000) },
+    { otId: ot3002.id, etapaId: E["Entrega Cliente"].id,    workflowEtapaId: getWE(W["Tapas Troqueladas"],5)?.id, ordenEtapa: 5,
+      estado: "completada", horaInicio: new Date(daysAgo(4).getTime() + 8*3600*1000), horaTermino: new Date(daysAgo(4).getTime() + 10*3600*1000) },
+  );
+
+  // ── OT-3003 (Tapas, completada) — cadena completa ──
+  const ot3003 = OT["OT-3003"];
+  actividades.push(
+    { otId: ot3003.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Tapas"],1)?.id, ordenEtapa: 1,
+      estado: "completada", horaInicio: daysAgo(3), horaTermino: new Date(daysAgo(3).getTime() + 30*60*1000) },
+    { otId: ot3003.id, etapaId: E["Impresión"].id,          workflowEtapaId: getWE(W["Tapas"],2)?.id, maquinaId: "impresion-2", operadorId: U["Juan Pérez"],     ordenEtapa: 2,
+      velocidadObjetivo: 70,
+      horaInicio: new Date(daysAgo(3).getTime() + 1*3600*1000),
+      horaInicioProduccion: new Date(daysAgo(3).getTime() + 1.2*3600*1000),
+      horaTermino: new Date(daysAgo(3).getTime() + 4*3600*1000),
+      unidadesProducidas: 19500, unidadesMerma: 350,
+      velocidadPromedio: 69, velocidadMin: 58, velocidadMax: 76, desviacionEstandar: 3.7,
+      estado: "completada" },
+    { otId: ot3003.id, etapaId: E["Troquelado"].id,         workflowEtapaId: getWE(W["Tapas"],3)?.id, maquinaId: "troquel-3",   operadorId: U["Diego Rojas"],    ordenEtapa: 3,
+      salidasPorGolpe: 2, velocidadObjetivo: 110,
+      horaInicio: new Date(daysAgo(3).getTime() + 5*3600*1000),
+      horaInicioProduccion: new Date(daysAgo(3).getTime() + 5.5*3600*1000),
+      horaTermino: new Date(daysAgo(3).getTime() + 10*3600*1000),
+      unidadesProducidas: 20000, unidadesMerma: 500,
+      velocidadPromedio: 105, velocidadMin: 88, velocidadMax: 116, desviacionEstandar: 5.2,
+      estado: "completada" },
+    { otId: ot3003.id, etapaId: E["Formado"].id,            workflowEtapaId: getWE(W["Tapas"],4)?.id, maquinaId: "formadora-2", operadorId: U["Valentina López"], ordenEtapa: 4,
+      velocidadObjetivo: 190,
+      horaInicio: new Date(daysAgo(3).getTime() + 11*3600*1000),
+      horaInicioProduccion: new Date(daysAgo(3).getTime() + 11.25*3600*1000),
+      horaTermino: new Date(daysAgo(3).getTime() + 14*3600*1000),
+      unidadesProducidas: 20000, unidadesMerma: 200,
+      velocidadPromedio: 188, velocidadMin: 170, velocidadMax: 205, desviacionEstandar: 7.5,
+      estado: "completada" },
+    { otId: ot3003.id, etapaId: E["Tránsito a Bodega"].id,  workflowEtapaId: getWE(W["Tapas"],5)?.id, ordenEtapa: 5,
+      estado: "completada", horaInicio: new Date(daysAgo(3).getTime() + 15*3600*1000), horaTermino: new Date(daysAgo(3).getTime() + 16*3600*1000) },
+    { otId: ot3003.id, etapaId: E["Entrega Cliente"].id,    workflowEtapaId: getWE(W["Tapas"],6)?.id, ordenEtapa: 6,
+      estado: "completada", horaInicio: new Date(daysAgo(2).getTime() + 9*3600*1000), horaTermino: new Date(daysAgo(2).getTime() + 11*3600*1000) },
+  );
+
+  // ── OT-3004 (Cono, en proceso) — troquelado activo en troquel-2 ──
   const ot3004 = OT["OT-3004"];
   actividades.push(
     { otId: ot3004.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Cono"],1)?.id, ordenEtapa: 1,
@@ -294,7 +378,7 @@ async function seed() {
       estado: "produciendo" },
   );
 
-  // OT-3005 (Tapas, en proceso) — llegada completa, impresión activa
+  // ── OT-3005 (Tapas, en proceso) — impresión pausada en impresion-1 ──
   const ot3005 = OT["OT-3005"];
   actividades.push(
     { otId: ot3005.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Tapas"],1)?.id, ordenEtapa: 1,
@@ -308,7 +392,7 @@ async function seed() {
       estado: "pausada" },
   );
 
-  // OT-3006 (Tapas Troqueladas, en proceso) — activa desde hace poco
+  // ── OT-3006 (Tapas Troqueladas, en proceso) — troquelado activo en troquel-3 ──
   const ot3006 = OT["OT-3006"];
   actividades.push(
     { otId: ot3006.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Tapas Troqueladas"],1)?.id, ordenEtapa: 1,
@@ -327,6 +411,78 @@ async function seed() {
       horaInicioProduccion: minutesAgo(55),
       unidadesProducidas: 6200, unidadesMerma: 300,
       velocidadPromedio: 108, velocidadMin: 90, velocidadMax: 118, desviacionEstandar: 5.5,
+      estado: "produciendo" },
+  );
+
+  // ── OT-3009 (Cono, en proceso) — formado activo en formadora-1 ──
+  const ot3009 = OT["OT-3009"];
+  actividades.push(
+    { otId: ot3009.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Cono"],1)?.id, ordenEtapa: 1,
+      estado: "completada", horaInicio: hoursAgo(5), horaTermino: hoursAgo(4.75) },
+    { otId: ot3009.id, etapaId: E["Impresión"].id,          workflowEtapaId: getWE(W["Cono"],2)?.id, maquinaId: "impresion-2", operadorId: U["Valentina López"], ordenEtapa: 2,
+      velocidadObjetivo: 78,
+      horaInicio: hoursAgo(4.75),
+      horaInicioProduccion: hoursAgo(4.5),
+      horaTermino: hoursAgo(3.5),
+      unidadesProducidas: 28000, unidadesMerma: 450,
+      velocidadPromedio: 77, velocidadMin: 64, velocidadMax: 85, desviacionEstandar: 4.6,
+      estado: "completada" },
+    { otId: ot3009.id, etapaId: E["Troquelado"].id,         workflowEtapaId: getWE(W["Cono"],3)?.id, maquinaId: "troquel-1",   operadorId: U["María González"], ordenEtapa: 3,
+      salidasPorGolpe: 4, velocidadObjetivo: 120,
+      horaInicio: hoursAgo(3.5),
+      horaInicioProduccion: hoursAgo(3.25),
+      horaTermino: hoursAgo(2),
+      unidadesProducidas: 36000, unidadesMerma: 1000,
+      velocidadPromedio: 116, velocidadMin: 92, velocidadMax: 128, desviacionEstandar: 6.5,
+      estado: "completada" },
+    { otId: ot3009.id, etapaId: E["Formado"].id,            workflowEtapaId: getWE(W["Cono"],4)?.id, maquinaId: "formadora-1", operadorId: U["Diego Rojas"],    ordenEtapa: 4,
+      velocidadObjetivo: 200,
+      horaInicio: hoursAgo(2),
+      horaInicioProduccion: hoursAgo(1.75),
+      unidadesProducidas: 19500, unidadesMerma: 400,
+      velocidadPromedio: 195, velocidadMin: 175, velocidadMax: 215, desviacionEstandar: 9.2,
+      estado: "produciendo" },
+  );
+
+  // ── OT-3010 (Tapas, en proceso) — impresión activa en impresion-2 ──
+  const ot3010 = OT["OT-3010"];
+  actividades.push(
+    { otId: ot3010.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Tapas"],1)?.id, ordenEtapa: 1,
+      estado: "completada", horaInicio: hoursAgo(4), horaTermino: hoursAgo(3.75) },
+    { otId: ot3010.id, etapaId: E["Impresión"].id,          workflowEtapaId: getWE(W["Tapas"],2)?.id, maquinaId: "impresion-2", operadorId: U["Andrés Castro"],  ordenEtapa: 2,
+      velocidadObjetivo: 72,
+      horaInicio: hoursAgo(3.5),
+      horaInicioProduccion: hoursAgo(3.25),
+      unidadesProducidas: 14500, unidadesMerma: 300,
+      velocidadPromedio: 71, velocidadMin: 60, velocidadMax: 79, desviacionEstandar: 4.1,
+      estado: "produciendo" },
+  );
+
+  // ── OT-3011 (Cono, en proceso) — formado calentando en formadora-2 ──
+  const ot3011 = OT["OT-3011"];
+  actividades.push(
+    { otId: ot3011.id, etapaId: E["Llegada Materiales"].id, workflowEtapaId: getWE(W["Cono"],1)?.id, ordenEtapa: 1,
+      estado: "completada", horaInicio: hoursAgo(2), horaTermino: hoursAgo(1.75) },
+    { otId: ot3011.id, etapaId: E["Impresión"].id,          workflowEtapaId: getWE(W["Cono"],2)?.id, maquinaId: "impresion-1", operadorId: U["María González"], ordenEtapa: 2,
+      velocidadObjetivo: 76,
+      horaInicio: hoursAgo(1.75),
+      horaInicioProduccion: hoursAgo(1.5),
+      horaTermino: hoursAgo(0.75),
+      unidadesProducidas: 10200, unidadesMerma: 250,
+      velocidadPromedio: 74, velocidadMin: 62, velocidadMax: 81, desviacionEstandar: 3.8,
+      estado: "completada" },
+    { otId: ot3011.id, etapaId: E["Troquelado"].id,         workflowEtapaId: getWE(W["Cono"],3)?.id, maquinaId: "troquel-4",   operadorId: U["Andrés Castro"],  ordenEtapa: 3,
+      salidasPorGolpe: 4, velocidadObjetivo: 118,
+      horaInicio: hoursAgo(0.75),
+      horaInicioProduccion: hoursAgo(0.5),
+      horaTermino: minutesAgo(10),
+      unidadesProducidas: 8800, unidadesMerma: 400,
+      velocidadPromedio: 110, velocidadMin: 88, velocidadMax: 122, desviacionEstandar: 6.0,
+      estado: "completada" },
+    { otId: ot3011.id, etapaId: E["Formado"].id,            workflowEtapaId: getWE(W["Cono"],4)?.id, maquinaId: "formadora-2", operadorId: U["Valentina López"], ordenEtapa: 4,
+      velocidadObjetivo: 190,
+      horaInicio: minutesAgo(10),
+      unidadesProducidas: 0, unidadesMerma: 0,
       estado: "calentando" },
   );
 
@@ -337,25 +493,22 @@ async function seed() {
   // ── 8. Paradas ───────────────────────────────────────────────────────
   console.log("  ⏸️  Paradas...");
 
-  // Parada activa en OT-3005 (impresión pausada)
-  const actImpOT3005 = A[`${ot3005.id}:2`];
-  // Paradas históricas en OT-3004 troquelado
-  const actTroqOT3004 = A[`${ot3004.id}:3`];
-  // Parada en OT-3001 troquelado (histórica)
-  const actTroqOT3001 = A[`${ot3001.id}:3`];
-
   const paradasData: (typeof parada.$inferInsert)[] = [];
 
+  // Parada activa en OT-3005 (impresión pausada)
+  const actImpOT3005 = A[`${ot3005.id}:2`];
   if (actImpOT3005) {
     paradasData.push({
       actividadOtId: actImpOT3005.id,
       motivo: "ajuste_maquina",
       detalle: "Ajuste de tensión de rodillo",
       horaInicio: minutesAgo(15),
-      horaTermino: null, // sigue activa
+      horaTermino: null,
     });
   }
 
+  // Paradas históricas en OT-3004 troquelado
+  const actTroqOT3004 = A[`${ot3004.id}:3`];
   if (actTroqOT3004) {
     paradasData.push({
       actividadOtId: actTroqOT3004.id,
@@ -366,6 +519,8 @@ async function seed() {
     });
   }
 
+  // Paradas históricas en OT-3001 troquelado
+  const actTroqOT3001 = A[`${ot3001.id}:3`];
   if (actTroqOT3001) {
     paradasData.push(
       {
@@ -391,137 +546,135 @@ async function seed() {
   }
   console.log(`     ✅ ${paradasData.length} paradas\n`);
 
-  // ── 9. Lecturas de máquina (actividades activas) ─────────────────────
-  // Generamos ~60 min de lecturas para las actividades en_proceso con máquina
-  console.log("  📡 Lecturas de máquina...");
-
-  const lecturasData: (typeof lecturaMaquina.$inferInsert)[] = [];
-
-  // Actividad activa: OT-3004 troquelado (troquel-2, golpes_min ~120)
-  const actTroqOT3004act = A[`${ot3004.id}:3`];
-  if (actTroqOT3004act) {
-    const inicioProduccion = actTroqOT3004act.horaInicioProduccion ?? hoursAgo(2.75);
-    // Merma: 15 min antes de producción (warmup)
-    const inicioCalentamiento = actTroqOT3004act.horaInicio ?? hoursAgo(3);
-    const mermaMinutos = 15;
-    for (let m = 0; m < mermaMinutos; m++) {
-      const golpesEnMinuto = randInt(40, 70); // velocidad baja en warmup
-      for (let g = 0; g < golpesEnMinuto; g++) {
-        lecturasData.push({
-          maquinaId: "troquel-2",
-          actividadOtId: actTroqOT3004act.id,
-          timestamp: new Date(inicioCalentamiento.getTime() + m * 60_000 + (g / golpesEnMinuto) * 60_000),
-          valor: 1,
-          esMerma: true,
-        });
-      }
-    }
-    // Producción: desde hora_inicio_produccion hasta ahora (~165 min)
-    const minProduccion = Math.floor((Date.now() - inicioProduccion.getTime()) / 60_000);
-    for (let m = 0; m < minProduccion; m++) {
-      const golpesEnMinuto = randInt(105, 128);
-      for (let g = 0; g < golpesEnMinuto; g++) {
-        lecturasData.push({
-          maquinaId: "troquel-2",
-          actividadOtId: actTroqOT3004act.id,
-          timestamp: new Date(inicioProduccion.getTime() + m * 60_000 + (g / golpesEnMinuto) * 60_000),
-          valor: 1,
-          esMerma: false,
-        });
-      }
-    }
-  }
-
-  // Actividad: OT-3006 troquelado (troquel-3, en calentamiento)
-  const actTroqOT3006 = A[`${ot3006.id}:3`];
-  if (actTroqOT3006) {
-    const inicioCalentamiento = actTroqOT3006.horaInicio ?? minutesAgo(60);
-    const minCalentando = Math.floor((Date.now() - inicioCalentamiento.getTime()) / 60_000);
-    for (let m = 0; m < minCalentando; m++) {
-      const golpesEnMinuto = randInt(30, 75);
-      for (let g = 0; g < golpesEnMinuto; g++) {
-        lecturasData.push({
-          maquinaId: "troquel-3",
-          actividadOtId: actTroqOT3006.id,
-          timestamp: new Date(inicioCalentamiento.getTime() + m * 60_000 + (g / golpesEnMinuto) * 60_000),
-          valor: 1,
-          esMerma: true,
-        });
-      }
-    }
-  }
-
-  // Insertar en lotes de 500 para no exceder límites
-  const BATCH = 500;
-  for (let i = 0; i < lecturasData.length; i += BATCH) {
-    await db.insert(lecturaMaquina).values(lecturasData.slice(i, i + BATCH));
-  }
-  console.log(`     ✅ ${lecturasData.length} lecturas individuales\n`);
-
-  // ── 10. Lecturas por minuto (agregadas) ──────────────────────────────
+  // ── 9. Lecturas por minuto (para todas las actividades activas con máquina) ──
   console.log("  📊 Lecturas por minuto...");
 
   const lpmData: (typeof lecturaPorMinuto.$inferInsert)[] = [];
 
-  // Agregar las lecturas de OT-3004 troquelado por minuto
-  if (actTroqOT3004act) {
-    const inicioProduccion = actTroqOT3004act.horaInicioProduccion ?? hoursAgo(2.75);
-    const minProduccion = Math.floor((Date.now() - inicioProduccion.getTime()) / 60_000);
-    for (let m = 0; m < minProduccion; m++) {
-      const velocidad = rand(105, 128);
+  // Helper para generar lecturas por minuto
+  function generateLpm(
+    maquinaId: string,
+    actividadId: string,
+    inicio: Date,
+    minutos: number,
+    rangoMin: number,
+    rangoMax: number,
+    esMerma: boolean,
+  ) {
+    for (let m = 0; m < minutos; m++) {
       lpmData.push({
-        maquinaId: "troquel-2",
-        actividadOtId: actTroqOT3004act.id,
-        minuto: new Date(inicioProduccion.getTime() + m * 60_000),
-        totalValor: velocidad,
-        conteoLecturas: Math.round(velocidad),
-        velocidad,
-        esMerma: false,
+        maquinaId,
+        actividadOtId: actividadId,
+        minuto: new Date(inicio.getTime() + m * 60_000),
+        conteoLecturas: randInt(rangoMin, rangoMax),
+        esMerma,
       });
     }
+  }
+
+  // OT-3004 troquelado (troquel-2, produciendo) — ~165 min de producción
+  const actTroqOT3004act = A[`${ot3004.id}:3`];
+  if (actTroqOT3004act) {
+    const inicioCalentamiento = actTroqOT3004act.horaInicio ?? hoursAgo(3);
+    const inicioProduccion = actTroqOT3004act.horaInicioProduccion ?? hoursAgo(2.75);
+    // Warmup: 15 min
+    generateLpm("troquel-2", actTroqOT3004act.id, inicioCalentamiento, 15, 40, 70, true);
+    // Producción: desde inicio producción hasta ahora
+    const minProduccion = Math.floor((Date.now() - inicioProduccion.getTime()) / 60_000);
+    generateLpm("troquel-2", actTroqOT3004act.id, inicioProduccion, minProduccion, 105, 128, false);
+  }
+
+  // OT-3006 troquelado (troquel-3, produciendo) — warmup + producción
+  const actTroqOT3006 = A[`${ot3006.id}:3`];
+  if (actTroqOT3006) {
+    const inicioCalentamiento = actTroqOT3006.horaInicio ?? hoursAgo(1);
+    const inicioProduccion = actTroqOT3006.horaInicioProduccion ?? minutesAgo(55);
+    const minWarmup = Math.floor((inicioProduccion.getTime() - inicioCalentamiento.getTime()) / 60_000);
+    generateLpm("troquel-3", actTroqOT3006.id, inicioCalentamiento, minWarmup, 30, 75, true);
+    const minProduccion = Math.floor((Date.now() - inicioProduccion.getTime()) / 60_000);
+    generateLpm("troquel-3", actTroqOT3006.id, inicioProduccion, minProduccion, 90, 118, false);
+  }
+
+  // OT-3005 impresión (impresion-1, pausada) — lecturas hasta la pausa
+  const actImpOT3005lpm = A[`${ot3005.id}:2`];
+  if (actImpOT3005lpm) {
+    const inicioProduccion = actImpOT3005lpm.horaInicioProduccion ?? hoursAgo(5.8);
+    // Lecturas hasta hace 15 min (cuando se pausó)
+    const minProduccion = Math.floor((minutesAgo(15).getTime() - inicioProduccion.getTime()) / 60_000);
+    generateLpm("impresion-1", actImpOT3005lpm.id, inicioProduccion, minProduccion, 60, 80, false);
+  }
+
+  // OT-3010 impresión (impresion-2, produciendo) — lecturas activas
+  const actImpOT3010 = A[`${ot3010.id}:2`];
+  if (actImpOT3010) {
+    const inicioCalentamiento = actImpOT3010.horaInicio ?? hoursAgo(3.5);
+    const inicioProduccion = actImpOT3010.horaInicioProduccion ?? hoursAgo(3.25);
+    const minWarmup = Math.floor((inicioProduccion.getTime() - inicioCalentamiento.getTime()) / 60_000);
+    generateLpm("impresion-2", actImpOT3010.id, inicioCalentamiento, minWarmup, 20, 40, true);
+    const minProduccion = Math.floor((Date.now() - inicioProduccion.getTime()) / 60_000);
+    generateLpm("impresion-2", actImpOT3010.id, inicioProduccion, minProduccion, 65, 85, false);
+  }
+
+  // OT-3009 formado (formadora-1, produciendo) — lecturas activas
+  const actFormOT3009 = A[`${ot3009.id}:4`];
+  if (actFormOT3009) {
+    const inicioCalentamiento = actFormOT3009.horaInicio ?? hoursAgo(2);
+    const inicioProduccion = actFormOT3009.horaInicioProduccion ?? hoursAgo(1.75);
+    const minWarmup = Math.floor((inicioProduccion.getTime() - inicioCalentamiento.getTime()) / 60_000);
+    generateLpm("formadora-1", actFormOT3009.id, inicioCalentamiento, minWarmup, 60, 100, true);
+    const minProduccion = Math.floor((Date.now() - inicioProduccion.getTime()) / 60_000);
+    generateLpm("formadora-1", actFormOT3009.id, inicioProduccion, minProduccion, 180, 220, false);
+  }
+
+  // OT-3011 formado (formadora-2, calentando) — solo warmup
+  const actFormOT3011 = A[`${ot3011.id}:4`];
+  if (actFormOT3011) {
+    const inicioCalentamiento = actFormOT3011.horaInicio ?? minutesAgo(10);
+    const minCalentando = Math.floor((Date.now() - inicioCalentamiento.getTime()) / 60_000);
+    generateLpm("formadora-2", actFormOT3011.id, inicioCalentamiento, minCalentando, 60, 100, true);
   }
 
   // Lecturas históricas de OT-3001 troquelado (troquel-1) — resumen por hora
   const actTroqOT3001hist = A[`${ot3001.id}:3`];
   if (actTroqOT3001hist) {
     const inicio = actTroqOT3001hist.horaInicioProduccion ?? new Date(daysAgo(6).getTime() + 8.5*3600*1000);
-    const minutos = 330; // 5.5 horas de producción
-    for (let m = 0; m < minutos; m++) {
-      const velocidad = rand(100, 130);
-      lpmData.push({
-        maquinaId: "troquel-1",
-        actividadOtId: actTroqOT3001hist.id,
-        minuto: new Date(inicio.getTime() + m * 60_000),
-        totalValor: velocidad,
-        conteoLecturas: Math.round(velocidad),
-        velocidad,
-        esMerma: false,
-      });
-    }
+    generateLpm("troquel-1", actTroqOT3001hist.id, inicio, 330, 100, 130, false);
   }
 
+  // Lecturas históricas de OT-3001 impresión (impresion-1)
+  const actImpOT3001hist = A[`${ot3001.id}:2`];
+  if (actImpOT3001hist) {
+    const inicio = actImpOT3001hist.horaInicioProduccion ?? new Date(daysAgo(7).getTime() + 70*60*1000);
+    generateLpm("impresion-1", actImpOT3001hist.id, inicio, 170, 65, 90, false);
+  }
+
+  // Lecturas históricas de OT-3001 formado (formadora-1)
+  const actFormOT3001hist = A[`${ot3001.id}:4`];
+  if (actFormOT3001hist) {
+    const inicio = actFormOT3001hist.horaInicioProduccion ?? new Date(daysAgo(6).getTime() + 14.25*3600*1000);
+    generateLpm("formadora-1", actFormOT3001hist.id, inicio, 225, 175, 215, false);
+  }
+
+  const BATCH = 500;
   for (let i = 0; i < lpmData.length; i += BATCH) {
     await db.insert(lecturaPorMinuto).values(lpmData.slice(i, i + BATCH));
   }
   console.log(`     ✅ ${lpmData.length} lecturas/minuto\n`);
 
-  // ── 11. Escaneos de barras ────────────────────────────────────────────
+  // ── 10. Escaneos de barras ──────────────────────────────────────────
   console.log("  🔍 Escaneos de barras...");
   await db.insert(escaneoBarras).values([
-    // Escaneos exitosos al iniciar OT-3004
     { tipo: "ot",       valorRaw: "OT-3004", entidadId: ot3004.id,       resultado: "ok",           maquinaId: "troquel-2",   usuarioId: U["Andrés Castro"],  timestamp: hoursAgo(3) },
     { tipo: "operador", valorRaw: "44444444-4", entidadId: U["Diego Rojas"], resultado: "ok",        maquinaId: "troquel-2",   usuarioId: U["Diego Rojas"],    timestamp: hoursAgo(3) },
-    // OT-3005 impresora
     { tipo: "ot",       valorRaw: "OT-3005", entidadId: ot3005.id,       resultado: "ok",           maquinaId: "impresion-1", usuarioId: U["Juan Pérez"],     timestamp: hoursAgo(6) },
     { tipo: "operador", valorRaw: "22222222-2", entidadId: U["Juan Pérez"], resultado: "ok",         maquinaId: "impresion-1", usuarioId: U["Juan Pérez"],     timestamp: hoursAgo(6) },
-    // Escaneo fallido (OT no encontrada)
     { tipo: "ot",       valorRaw: "OT-9999", entidadId: null,             resultado: "no_encontrado", maquinaId: "troquel-1", usuarioId: null,                timestamp: hoursAgo(1) },
-    // Escaneo de máquina
     { tipo: "maquina",  valorRaw: "troquel-3", entidadId: "troquel-3",   resultado: "ok",           maquinaId: "troquel-3",   usuarioId: U["Diego Rojas"],    timestamp: hoursAgo(1) },
-    // Escaneo OT-3006
     { tipo: "ot",       valorRaw: "OT-3006", entidadId: ot3006.id,       resultado: "ok",           maquinaId: "troquel-3",   usuarioId: U["Diego Rojas"],    timestamp: hoursAgo(1) },
+    { tipo: "ot",       valorRaw: "OT-3009", entidadId: ot3009.id,       resultado: "ok",           maquinaId: "formadora-1", usuarioId: U["Diego Rojas"],    timestamp: hoursAgo(2) },
+    { tipo: "ot",       valorRaw: "OT-3010", entidadId: ot3010.id,       resultado: "ok",           maquinaId: "impresion-2", usuarioId: U["Andrés Castro"],  timestamp: hoursAgo(3.5) },
   ]);
-  console.log("     ✅ 7 escaneos\n");
+  console.log("     ✅ 9 escaneos\n");
 
   // ── Resumen ──────────────────────────────────────────────────────────
   console.log("✅ Seed completado!\n");
@@ -531,12 +684,11 @@ async function seed() {
   console.log(`   ${allWfEtapas.length} pasos de workflow`);
   console.log(`   ${maquinas.length} máquinas`);
   console.log(`   ${usuarios.length} usuarios (1 admin, 2 supervisores, 5 operadores)`);
-  console.log(`   ${otsData.length} OTs (3 completadas, 3 en proceso, 2 pendientes)`);
+  console.log(`   ${otsData.length} OTs (3 completadas, 6 en proceso, 4 pendientes)`);
   console.log(`   ${actividadesInserted.length} actividades`);
   console.log(`   ${paradasData.length} paradas`);
-  console.log(`   ${lecturasData.length} lecturas individuales de máquina`);
   console.log(`   ${lpmData.length} lecturas agregadas por minuto`);
-  console.log("   7 escaneos de barras");
+  console.log("   9 escaneos de barras");
 
   await client.end();
 }

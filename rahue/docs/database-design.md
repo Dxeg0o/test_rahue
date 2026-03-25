@@ -10,7 +10,7 @@ El modelo se organiza en **5 capas** lógicas:
 | 2. Recursos | `maquina`, `usuario` | Máquinas de planta + operadores (Supabase Auth) |
 | 3. Órdenes | `ot` | Órdenes de trabajo |
 | 4. Ejecución | `actividad_ot`, `parada` | Registro de producción en vivo |
-| 5. Lecturas | `lectura_maquina`, `lectura_por_minuto` | Datos de alta frecuencia de sensores |
+| 5. Lecturas | `lectura_por_minuto` | Datos agregados por minuto de sensores |
 
 Tabla auxiliar: `escaneo_barras` (auditoría de escaneos de código de barras).
 
@@ -60,14 +60,14 @@ Archivo Excalidraw: [`database-model.excalidraw`](./database-model.excalidraw)
                 └───────────┬─────────────┘
                     ┌───────┴───────┐
                     ▼               ▼
-          ┌──────────────┐  ┌────────────────┐  ┌─────────────────┐
-          │   parada      │  │lectura_maquina │  │lectura_por_min  │
-          │               │  │                │  │  (agregada)     │
-          │ motivo        │  │ maquina_id  FK │  │                 │
-          │ hora_inicio   │  │ timestamp      │  │ velocidad       │
-          │ hora_termino  │  │ valor          │  │ total_valor     │
-          │ duracion_seg  │  │ es_merma       │  │ minuto          │
-          └───────────────┘  └────────────────┘  └─────────────────┘
+          ┌──────────────┐  ┌─────────────────┐
+          │   parada      │  │lectura_por_min  │
+          │               │  │                 │
+          │ motivo        │  │ maquina_id  FK  │
+          │ hora_inicio   │  │ minuto          │
+          │ hora_termino  │  │ conteo_lecturas │
+          │ duracion_seg  │  │ es_merma        │
+          └───────────────┘  └─────────────────┘
 ```
 
 ---
@@ -78,16 +78,16 @@ Archivo Excalidraw: [`database-model.excalidraw`](./database-model.excalidraw)
 
 **Problema:** Tu modelo original tenía una tabla `golpes` que solo servía para troqueladoras. Impresoras miden metros/minuto y formadoras miden unidades/minuto.
 
-**Solución:** La tabla `lectura_maquina` es **genérica**:
+**Solución:** La tabla `lectura_por_minuto` almacena `conteo_lecturas` por minuto. Este valor ES la velocidad:
 
-| Tipo de máquina | `valor` representa | `tipo_metrica` en etapa |
-|-----------------|-------------------|------------------------|
-| Troqueladora | 1 golpe | `golpes_min` |
-| Impresora | metros avanzados | `metros_min` |
-| Formadora | unidades formadas | `unidades_min` |
+| Tipo de máquina | `conteo_lecturas` representa | `tipo_metrica` en etapa |
+|-----------------|------------------------------|------------------------|
+| Troqueladora | golpes en ese minuto | `golpes_min` |
+| Impresora | metros avanzados en ese minuto | `metros_min` |
+| Formadora | unidades formadas en ese minuto | `unidades_min` |
 | Logística | N/A (sin lecturas) | `logistica` |
 
-La máquina hereda su `tipo_metrica` de la etapa a la que pertenece. Esto permite que el frontend muestre la unidad correcta ("gpm", "m/min", etc.) sin lógica condicional compleja.
+La máquina hereda su `tipo_metrica` de la etapa a la que pertenece. La velocidad y el total_valor se calculan on-the-fly a partir de `conteo_lecturas` y el timestamp.
 
 ### 2. Workflows (lo que faltaba)
 
@@ -160,11 +160,10 @@ El escaneo de OT ya funciona en el operador. El modelo soporta esto:
 
 ### 6. Escalabilidad de lecturas
 
-`lectura_maquina` es la tabla que más crece (potencialmente millones de filas/día con troqueladoras a 350 gpm). Estrategias:
+`lectura_por_minuto` almacena una fila por minuto por máquina. Estrategias de escalabilidad:
 
-- **Particionamiento por mes** en PostgreSQL
-- **Agregación a `lectura_por_minuto`** para dashboards (cron cada 60s)
-- **Retención**: lecturas individuales > 90 días → archivar/eliminar
+- **Particionamiento por mes** en PostgreSQL si el volumen crece
+- **Retención**: lecturas > 90 días → archivar/eliminar
 - **TimescaleDB** como opción si el volumen es extremo
 
 ---
@@ -173,18 +172,18 @@ El escaneo de OT ya funciona en el operador. El modelo soporta esto:
 
 | Tu modelo | Modelo nuevo | Por qué |
 |-----------|-------------|---------|
-| `golpes` (solo troqueladoras) | `lectura_maquina` (genérica) | Soporta todos los tipos de máquina |
+| `golpes` (solo troqueladoras) | `lectura_por_minuto` (genérica) | Soporta todos los tipos de máquina, agregada por minuto |
 | Sin workflows | `tipo_producto` + `workflow_etapa` | Define flujos por producto |
 | Sin usuarios | `usuario` (Supabase Auth) | Operadores, supervisores, admin |
 | `maquina` (id, tipo) | `maquina` (id, nombre, etapa_id, tipo_metrica) | Más contexto por máquina |
 | Sin paradas | `parada` | Registro detallado de pausas |
 | Sin merma/warmup | `actividad_ot.hora_inicio_produccion` + `es_merma` | Tracking de merma |
 | Sin auditoría de escaneos | `escaneo_barras` | Trazabilidad completa |
-| Sin agregaciones | `lectura_por_minuto` | Performance en dashboards |
+| Sin agregaciones | `lectura_por_minuto` (tabla principal) | Performance en dashboards |
 
 ---
 
-## Tablas totales: 12
+## Tablas totales: 11
 
 1. `categoria` - categorías de etapas
 2. `etapa` - catálogo de etapas productivas
@@ -195,6 +194,5 @@ El escaneo de OT ya funciona en el operador. El modelo soporta esto:
 7. `ot` - órdenes de trabajo
 8. `actividad_ot` - ejecución en planta
 9. `parada` - pausas/paradas
-10. `lectura_maquina` - lecturas de sensores (alta frecuencia)
-11. `lectura_por_minuto` - agregación para dashboards
-12. `escaneo_barras` - auditoría de escaneos (auxiliar)
+10. `lectura_por_minuto` - lecturas agregadas por minuto
+11. `escaneo_barras` - auditoría de escaneos (auxiliar)
